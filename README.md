@@ -25,8 +25,8 @@ Dalbit finds the PC on the cable by itself; you do not have to type an IP addres
 * **Scriptable**: launcher shortcuts accept a `Quit` extra to end the running host app without a dialog, so a script on the PC
   can turn the tablet monitor on and off without touching the tablet.
 * **No 60 Hz cap from vendor game modes**: Dalbit is not declared as a game, so modes like Lenovo ZUI's do not lock it to 60 Hz.
-* **Keyboard cover input**: touchpad tap, drag and two-finger gestures in local cursor mode (fixes taps registering as right
-  clicks on Lenovo ZUI tablets), and the host Korean/English input mode follows the tablet keyboard language.
+* **Keyboard cover touchpads**: tap, drag and two-finger gestures in local cursor mode (fixes taps registering as right
+  clicks on Lenovo ZUI tablets).
 
 ## Setting up a USB second monitor
 
