@@ -58,6 +58,9 @@ public class ShortcutTrampoline extends AppCompatActivity {
 
     private static final String TAG = "ShortcutTrampoline";
 
+    // Quits whatever runs on the host without asking, e.g. from a script that turns off an Extend Mode monitor
+    public static final String QUIT_EXTRA = "Quit";
+
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         public void onServiceConnected(ComponentName className, IBinder binder) {
             final ComputerManagerService.ComputerManagerBinder localBinder =
@@ -142,9 +145,16 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                         }
 
                                         if (details.state == ComputerDetails.State.ONLINE && details.pairState == PairingManager.PairState.PAIRED) {
-                                            
+
+                                            if (getIntent().getBooleanExtra(QUIT_EXTRA, false)) {
+                                                if (details.runningGameId != 0) {
+                                                    ServerHelper.doQuit(ShortcutTrampoline.this, details,
+                                                            new NvApp("", null, details.runningGameId, false), managerBinder, null);
+                                                }
+                                                finish();
+                                            }
                                             // Launch game if provided app ID, otherwise launch app view
-                                            if (app != null) {
+                                            else if (app != null) {
                                                 if (details.runningGameId == 0 || details.runningGameId == app.getAppId() || Objects.equals(details.runningGameUUID, app.getAppUUID())) {
                                                     intentStack.add(ServerHelper.createStartIntent(ShortcutTrampoline.this, app, details, managerBinder, prefConfig.useVirtualDisplay));
 
