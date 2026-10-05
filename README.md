@@ -38,7 +38,7 @@ Dalbit finds the PC on the cable by itself; you do not have to type an IP addres
 Android turns USB tethering off whenever the cable is reconnected. It can be turned back on from the PC with
 `adb shell svc usb setFunctions rndis` when USB debugging is enabled.
 
-Dalbit has been tested on one device so far (Lenovo Xiaoxin Pad Pro GT, Android 16).
+Dalbit has been tested on one Lenovo tablet (Android 16) so far.
 It stays under the same GPLv3 license as Artemis and Moonlight. Everything below is the original Artemis README.
 
 ---
