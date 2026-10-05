@@ -127,7 +127,11 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                 }
                             }
 
-                            if (details.state != ComputerDetails.State.UNKNOWN) {
+                            // A WoL retry from a concurrent callback can reset details.state before the UI
+                            // thread runs, which would match no branch below and leave a blank screen.
+                            final ComputerDetails.State state = details.state;
+                            final PairingManager.PairState pairState = details.pairState;
+                            if (state != ComputerDetails.State.UNKNOWN) {
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
@@ -144,7 +148,7 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                             return;
                                         }
 
-                                        if (details.state == ComputerDetails.State.ONLINE && details.pairState == PairingManager.PairState.PAIRED) {
+                                        if (state == ComputerDetails.State.ONLINE && pairState == PairingManager.PairState.PAIRED) {
 
                                             if (getIntent().getBooleanExtra(QUIT_EXTRA, false)) {
                                                 if (details.runningGameId != 0) {
@@ -214,13 +218,13 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                             }
                                             
                                         }
-                                        else if (details.state == ComputerDetails.State.OFFLINE) {
+                                        else if (state == ComputerDetails.State.OFFLINE) {
                                             // Computer offline - display an error dialog
                                             Dialog.displayDialog(ShortcutTrampoline.this,
                                                     getResources().getString(R.string.conn_error_title),
                                                     getResources().getString(R.string.error_pc_offline),
                                                     true);
-                                        } else if (details.pairState != PairingManager.PairState.PAIRED) {
+                                        } else if (pairState != PairingManager.PairState.PAIRED) {
                                             // Computer not paired - display an error dialog
                                             Dialog.displayDialog(ShortcutTrampoline.this,
                                                     getResources().getString(R.string.conn_error_title),
