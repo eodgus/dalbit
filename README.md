@@ -44,6 +44,11 @@ PATH and USB debugging on the device. Set `APP` at the top of `dalbit-on.cmd` to
 read from Sunshine's `sunshine_state.json`. Anything else your PC needs after turning the monitor off can go in a
 `dalbit-off.local.cmd` next to the scripts.
 
+A USB data port on a PC usually gives the tablet only about 2.5 W (5 V, 0.45-0.5 A), even a motherboard USB-C port. On the
+test tablet that was not enough at 120 FPS and the battery slowly drained. At 60 FPS with a video playing it dropped about
+4% an hour. To charge while streaming, connect the tablet through a powered USB hub whose ports support charging and data
+at the same time (BC 1.2 CDP, up to 1.5 A).
+
 Dalbit has been tested on one Lenovo tablet (Android 16) so far.
 It stays under the same GPLv3 license as Artemis and Moonlight. Everything below is the original Artemis README.
 
