@@ -2,22 +2,44 @@
 
 # Dalbit
 
-Dalbit (달빛, Korean for "moonlight") is a personal fork of [Artemis Android](https://github.com/ClassicOldSong/moonlight-android),
-tuned for using an Android tablet as a second monitor for a Windows PC running [Sunshine](https://github.com/LizardByte/Sunshine),
-plus playing remotely when away from the PC.
+**Plug in your Android tablet with a USB cable and use it as a second monitor for your PC.**
 
-Changes from Artemis:
+Dalbit (달빛, Korean for "moonlight") is a fork of [Artemis Android](https://github.com/ClassicOldSong/moonlight-android)
+built around one use case: an Android tablet next to a Windows PC running [Sunshine](https://github.com/LizardByte/Sunshine),
+connected over USB and used as an extra screen. It is still a full Moonlight client, so the same app also streams games
+over Wi-Fi or the internet when you are away from the PC.
+
+## Why USB
+
+Over USB tethering the stream does not compete with Wi-Fi traffic or interference. On a Lenovo tablet at 3200x1800 and
+120 FPS, the network part of the delay measured about 1 ms with no jitter, so what is left is encode, decode and display time.
+Dalbit finds the PC on the cable by itself; you do not have to type an IP address or remember to switch networks.
+
+## What Dalbit adds to Artemis
 
 * **USB first**: when the tablet shares a USB tethering link with the PC, Dalbit finds the host on that link and streams over the
   cable, falling back to Wi-Fi or the internet when it is not there (Host Settings > Prefer the USB tethering link).
-* **Keyboard cover input**: touchpad tap, drag and two-finger gestures in local cursor mode; the host Korean/English input mode
-  follows the tablet keyboard language.
-* **Per-app settings**: "Host-only audio apps" keep audio on the PC, and "Touchscreen apps" always use the screen as a touchscreen,
-  e.g. for an extended desktop app.
-* **Scriptable**: launcher shortcuts accept a `Quit` extra to end the running host app without a dialog.
-* **Not declared as a game**, so vendor game modes do not cap the refresh rate at 60 Hz.
+* **Made for an extended desktop**: per-app settings let a second-monitor app behave like a monitor while other apps behave
+  like a game stream. "Touchscreen apps" always use the screen as a touchscreen, and "Host-only audio apps" keep the sound on
+  the PC.
+* **Scriptable**: launcher shortcuts accept a `Quit` extra to end the running host app without a dialog, so a script on the PC
+  can turn the tablet monitor on and off without touching the tablet.
+* **No 60 Hz cap from vendor game modes**: Dalbit is not declared as a game, so modes like Lenovo ZUI's do not lock it to 60 Hz.
+* **Keyboard cover input**: touchpad tap, drag and two-finger gestures in local cursor mode (fixes taps registering as right
+  clicks on Lenovo ZUI tablets), and the host Korean/English input mode follows the tablet keyboard language.
 
-Dalbit stays under the same GPLv3 license as Artemis and Moonlight. Everything below is the original Artemis README.
+## Setting up a USB second monitor
+
+1. On the PC, run Sunshine with a virtual display driver and an app that extends the desktop onto that display.
+2. Connect the tablet with a USB cable and turn on **USB tethering** on the tablet.
+3. In Dalbit, pair with the PC once (over Wi-Fi or the cable), then start the extended desktop app.
+4. In Dalbit settings, add that app's name to **Touchscreen apps** and **Host-only audio apps**.
+
+Android turns USB tethering off whenever the cable is reconnected. It can be turned back on from the PC with
+`adb shell svc usb setFunctions rndis` when USB debugging is enabled.
+
+Dalbit has been tested on one device so far (Lenovo Xiaoxin Pad Pro GT, Android 16).
+It stays under the same GPLv3 license as Artemis and Moonlight. Everything below is the original Artemis README.
 
 ---
 
