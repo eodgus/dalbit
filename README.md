@@ -38,6 +38,12 @@ Dalbit finds the PC on the cable by itself; you do not have to type an IP addres
 Android turns USB tethering off whenever the cable is reconnected. It can be turned back on from the PC with
 `adb shell svc usb setFunctions rndis` when USB debugging is enabled.
 
+[`pc-scripts`](pc-scripts) has two double-click scripts that do this from the PC: `dalbit-on.cmd` wakes the device,
+turns on USB tethering and starts the extended desktop app, and `dalbit-off.cmd` ends the session. They need `adb` on
+PATH and USB debugging on the device. Set `APP` at the top of `dalbit-on.cmd` to your Sunshine app's name; the host ID is
+read from Sunshine's `sunshine_state.json`. Anything else your PC needs after turning the monitor off can go in a
+`dalbit-off.local.cmd` next to the scripts.
+
 Dalbit has been tested on one Lenovo tablet (Android 16) so far.
 It stays under the same GPLv3 license as Artemis and Moonlight. Everything below is the original Artemis README.
 

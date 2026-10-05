@@ -51,3 +51,6 @@ AGENTS.md
 # Release signing secrets
 keystore.properties
 *.jks
+
+# PC-specific additions to the PC scripts
+pc-scripts/*.local.cmd
