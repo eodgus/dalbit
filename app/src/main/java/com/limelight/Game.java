@@ -791,7 +791,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 .setEnableUltraLowLatency(prefConfig.enableUltraLowLatency)
                 .setBitrate(isMetered ? prefConfig.meteredBitrate: prefConfig.bitrate)
                 .setEnableSops(prefConfig.enableSops)
-                .enableLocalAudioPlayback(prefConfig.playHostAudio)
+                .enableLocalAudioPlayback(prefConfig.playHostAudio || isHostAudioOnlyApp())
                 .setMaxPacketSize(1392)
                 .setRemoteConfiguration(StreamConfiguration.STREAM_CFG_AUTO) // NvConnection will perform LAN and VPN detection
                 .setSupportedVideoFormats(supportedVideoFormats)
@@ -878,7 +878,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 decoderRenderer.setRenderTarget(streamContainer.getSurface());
 
                 // Starten Sie die NvConnection
-                conn.start(new AndroidAudioRenderer(Game.this, prefConfig.playHostAudio),
+                AndroidAudioRenderer audioRenderer = new AndroidAudioRenderer(Game.this, prefConfig.playHostAudio);
+                audioRenderer.setMuted(isHostAudioOnlyApp());
+                conn.start(audioRenderer,
                         decoderRenderer, Game.this);
             }
         });
@@ -2045,6 +2047,21 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         return handleKeyDown(event) || super.onKeyDown(keyCode, event);
+    }
+
+    // Apps (e.g. an extended desktop used while sitting at the PC) whose audio should only play on the
+    // host: listed by name in the settings, comma separated, matched case-insensitively as substrings.
+    private boolean isHostAudioOnlyApp() {
+        if (appName == null || prefConfig.hostAudioOnlyApps == null) {
+            return false;
+        }
+        for (String name : prefConfig.hostAudioOnlyApps.split(",")) {
+            name = name.trim();
+            if (!name.isEmpty() && appName.toLowerCase().contains(name.toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static final int ESC_HOLD_MENU_MS = 1000;

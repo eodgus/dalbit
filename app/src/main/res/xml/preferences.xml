@@ -562,6 +562,14 @@
             android:summary="@string/summary_checkbox_host_audio"
             android:title="@string/title_checkbox_host_audio"
             app:iconSpaceReserved="false" />
+        <EditTextPreference
+            android:defaultValue=""
+            android:dialogTitle="@string/title_host_audio_only_apps"
+            android:key="edit_host_audio_only_apps"
+            android:singleLine="true"
+            android:summary="@string/summary_host_audio_only_apps"
+            android:title="@string/title_host_audio_only_apps"
+            app:iconSpaceReserved="false" />
     </PreferenceCategory>
 
     <PreferenceCategory

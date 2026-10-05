@@ -54,6 +54,7 @@ public class PreferenceConfiguration {
     private static final String SOPS_PREF_STRING = "checkbox_enable_sops";
     private static final String DISABLE_TOASTS_PREF_STRING = "checkbox_disable_warnings";
     private static final String HOST_AUDIO_PREF_STRING = "checkbox_host_audio";
+    private static final String HOST_AUDIO_ONLY_APPS_PREF_STRING = "edit_host_audio_only_apps";
     private static final String DEADZONE_PREF_STRING = "seekbar_deadzone";
     private static final String OSC_OPACITY_PREF_STRING = "seekbar_osc_opacity";
     private static final String LANGUAGE_PREF_STRING = "list_languages";
@@ -263,6 +264,7 @@ public class PreferenceConfiguration {
     public int onscreenKeyboardWidth;
     public String onscreenKeyboardAlignMode;
     public boolean enforceDisplayMode, useVirtualDisplay, enableSops, playHostAudio, disableWarnings, fullScreen;
+    public String hostAudioOnlyApps;
     public ScaleMode videoScaleMode;
     public String language;
     public int renderMode;
@@ -909,6 +911,7 @@ private static int getFramePacingValue(Context context) {
         config.enableUltraLowLatency = prefs.getBoolean(ENABLE_ULTRA_LOW_LATENCY_PREF_STRING, DEFAULT_ENABLE_ULTRA_LOW_LATENCY);
         config.enableSops = prefs.getBoolean(SOPS_PREF_STRING, DEFAULT_SOPS);
         config.playHostAudio = prefs.getBoolean(HOST_AUDIO_PREF_STRING, DEFAULT_HOST_AUDIO);
+        config.hostAudioOnlyApps = prefs.getString(HOST_AUDIO_ONLY_APPS_PREF_STRING, "");
         config.smallIconMode = prefs.getBoolean(SMALL_ICONS_PREF_STRING, getDefaultSmallMode(context));
         config.multiController = prefs.getBoolean(MULTI_CONTROLLER_PREF_STRING, DEFAULT_MULTI_CONTROLLER);
         config.usbDriver = prefs.getBoolean(USB_DRIVER_PREF_SRING, DEFAULT_USB_DRIVER);
