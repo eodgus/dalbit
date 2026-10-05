@@ -428,6 +428,16 @@
             app:iconSpaceReserved="false"
             seekbar:min="-200"
             seekbar:step="10" />
+        <com.limelight.preferences.SeekBarPreference
+            android:defaultValue="100"
+            android:key="seekbar_trackpad_scroll_speed"
+            seekbar:step="10"
+            seekbar:min="10"
+            android:max="300"
+            android:text="%"
+            android:summary="@string/summary_trackpad_scroll_speed"
+            android:title="@string/title_trackpad_scroll_speed"
+            app:iconSpaceReserved="false" />
         <CheckBoxPreference
             android:defaultValue="false"
             android:key="checkbox_trackpad_drag_drop_vibration"
@@ -443,6 +453,55 @@
             android:text="ms"
             android:summary="@string/summary_trackpad_drag_drop_threshold"
             android:title="@string/title_trackpad_drag_drop_threshold"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_esc_hold_menu"
+            android:summary="@string/summary_esc_hold_menu"
+            android:title="@string/title_esc_hold_menu"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_language_switch_hangul"
+            android:summary="@string/summary_language_switch_hangul"
+            android:title="@string/title_language_switch_hangul"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="checkbox_touchpad_tap_to_click"
+            android:summary="@string/summary_touchpad_tap_to_click"
+            android:title="@string/title_touchpad_tap_to_click"
+            app:iconSpaceReserved="false" />
+        <ListPreference
+            android:defaultValue="right"
+            android:entries="@array/touchpad_two_finger_tap_names"
+            android:entryValues="@array/touchpad_two_finger_tap_values"
+            android:key="list_touchpad_two_finger_tap"
+            android:summary="%s"
+            android:title="@string/title_touchpad_two_finger_tap"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_touchpad_swipe_navigation"
+            android:summary="@string/summary_touchpad_swipe_navigation"
+            android:title="@string/title_touchpad_swipe_navigation"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="checkbox_touchpad_tap_drag"
+            android:summary="@string/summary_touchpad_tap_drag"
+            android:title="@string/title_touchpad_tap_drag"
+            app:iconSpaceReserved="false" />
+        <com.limelight.preferences.SeekBarPreference
+            android:defaultValue="200"
+            android:key="seekbar_touchpad_tap_drag_window"
+            android:dependency="checkbox_touchpad_tap_drag"
+            seekbar:step="10"
+            seekbar:min="50"
+            android:max="400"
+            android:text="ms"
+            android:summary="@string/summary_touchpad_tap_drag_window"
+            android:title="@string/title_touchpad_tap_drag_window"
             app:iconSpaceReserved="false" />
         <CheckBoxPreference
             android:defaultValue="false"

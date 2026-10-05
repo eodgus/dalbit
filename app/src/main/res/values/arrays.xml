@@ -189,6 +189,17 @@
         <item>5</item>
     </string-array>
 
+    <string-array name="touchpad_two_finger_tap_names">
+        <item>@string/touchpad_two_finger_tap_right</item>
+        <item>@string/touchpad_two_finger_tap_middle</item>
+        <item>@string/touchpad_two_finger_tap_none</item>
+    </string-array>
+    <string-array name="touchpad_two_finger_tap_values" translatable="false">
+        <item>right</item>
+        <item>middle</item>
+        <item>none</item>
+    </string-array>
+
     <string-array name="onscreen_keyboard_align_modes">
         <item>@string/align_left</item>
         <item>@string/align_center</item>

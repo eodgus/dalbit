@@ -112,6 +112,8 @@ import androidx.core.app.NotificationManagerCompat;
 import androidx.preference.PreferenceManager;
 
 import android.os.Looper;
+import android.os.SystemClock;
+import android.util.Log;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
@@ -811,10 +813,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         InputManager inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
         inputManager.registerInputDeviceListener(keyboardTranslator, null);
+        if (prefConfig.languageSwitchHangul) {
+            inputManager.registerInputDeviceListener(languageSwitchListener, null);
+        }
 
         // Initialize trackpad contexts
         for (int i = 0; i < trackpadContextMap.length; i++) {
-            trackpadContextMap[i] = new TrackpadContext(conn, i, prefConfig.trackpadSwapAxis, prefConfig.trackpadSensitivityX, prefConfig.trackpadSensitivityY);
+            trackpadContextMap[i] = new TrackpadContext(conn, i, prefConfig.trackpadSwapAxis, prefConfig.trackpadSensitivityX, prefConfig.trackpadSensitivityY, prefConfig.trackpadScrollSpeed);
         }
 
         if (Objects.equals(appUUID, NvApp.REMOTE_INPUT_UUID)) {
@@ -1713,6 +1718,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if (keyboardTranslator != null) {
             InputManager inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
             inputManager.unregisterInputDeviceListener(keyboardTranslator);
+            inputManager.unregisterInputDeviceListener(languageSwitchListener);
         }
 
         if (lowLatencyWifiLock != null) {
@@ -2041,6 +2047,18 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         return handleKeyDown(event) || super.onKeyDown(keyCode, event);
     }
 
+    private static final int ESC_HOLD_MENU_MS = 1000;
+    private static final short VK_ESCAPE = (short) 0x801B;
+    private boolean escHoldMenuShown = false;
+
+    // Some tablet keyboard covers (e.g. Lenovo) report their Esc key as BACK. When Esc can open the
+    // menu by holding it, send it to the host as Esc instead of leaving the stream.
+    private boolean isKeyboardEscAsBack(KeyEvent event) {
+        InputDevice device = event.getDevice();
+        return prefConfig.escHoldMenu && !prefConfig.backAsMeta && event.getKeyCode() == KeyEvent.KEYCODE_BACK &&
+                device != null && !device.isVirtual() && device.getKeyboardType() == InputDevice.KEYBOARD_TYPE_ALPHABETIC;
+    }
+
     @Override
     public boolean handleKeyDown(KeyEvent event) {
         // Pass-through virtual navigation keys
@@ -2096,6 +2114,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // We'll send it as a raw key event if we have a key mapping, otherwise we'll send it
             // as UTF-8 text (if it's a printable character).
             short translated = keyboardTranslator.translate(event.getKeyCode(), event.getScanCode(), deviceId);
+            if (translated == 0 && isKeyboardEscAsBack(event)) {
+                translated = VK_ESCAPE;
+            }
             if (translated == 0) {
                 if (prefConfig.backAsMeta && event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
                     translated = 0x5b; // Meta key
@@ -2117,6 +2138,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
             // Eat repeat down events
             if (event.getRepeatCount() > 0) {
+                // Holding Esc opens the stream menu, for keyboards without a back key
+                if (prefConfig.escHoldMenu && translated == VK_ESCAPE && !escHoldMenuShown &&
+                        event.getEventTime() - event.getDownTime() >= ESC_HOLD_MENU_MS) {
+                    escHoldMenuShown = true;
+                    conn.sendKeyboardInput(translated, KeyboardPacket.KEY_UP, getModifierState(event),
+                            keyboardTranslator.hasNormalizedMapping(event.getKeyCode(), deviceId) ? 0 : MoonBridge.SS_KBE_FLAG_NON_NORMALIZED);
+                    showGameMenu(null);
+                }
                 return true;
             }
 
@@ -2182,6 +2211,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
 
             short translated = keyboardTranslator.translate(event.getKeyCode(), event.getScanCode(), deviceId);
+            if (translated == 0 && isKeyboardEscAsBack(event)) {
+                translated = VK_ESCAPE;
+            }
             if (translated == 0) {
                 if (prefConfig.backAsMeta && event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
                     translated = 0x5b; // Meta key
@@ -2191,6 +2223,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     int unicodeChar = event.getUnicodeChar();
                     return (unicodeChar & KeyCharacterMap.COMBINING_ACCENT) == 0 && (unicodeChar & KeyCharacterMap.COMBINING_ACCENT_MASK) != 0;
                 }
+            }
+
+            if (escHoldMenuShown && translated == VK_ESCAPE) {
+                // Already released on the host when the menu opened
+                escHoldMenuShown = false;
+                return true;
             }
 
             conn.sendKeyboardInput(translated, KeyboardPacket.KEY_UP, getModifierState(event),
@@ -2766,6 +2804,287 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
     }
 
+    // Some tablets (Lenovo ZUI) consume the language switch key (e.g. right Alt) themselves and never
+    // pass it to apps, but switching the physical keyboard layout reports the keyboard as changed.
+    // Forward that as the Korean Hangul/English toggle so the host IME follows the tablet.
+    private static final short VK_HANGUL = (short) 0x8015;
+    private long lastLanguageSwitchTime = 0;
+    private final InputManager.InputDeviceListener languageSwitchListener = new InputManager.InputDeviceListener() {
+        @Override
+        public void onInputDeviceAdded(int deviceId) {}
+
+        @Override
+        public void onInputDeviceRemoved(int deviceId) {}
+
+        @Override
+        public void onInputDeviceChanged(int deviceId) {
+            InputDevice device = InputDevice.getDevice(deviceId);
+            if (device == null || device.isVirtual() || conn == null ||
+                    device.getKeyboardType() != InputDevice.KEYBOARD_TYPE_ALPHABETIC) {
+                return;
+            }
+            // One switch can report the change more than once
+            long now = SystemClock.uptimeMillis();
+            if (now - lastLanguageSwitchTime < 200) {
+                return;
+            }
+            lastLanguageSwitchTime = now;
+            conn.sendKeyboardInput(VK_HANGUL, KeyboardPacket.KEY_DOWN, (byte) 0, (byte) 0);
+            conn.sendKeyboardInput(VK_HANGUL, KeyboardPacket.KEY_UP, (byte) 0, (byte) 0);
+            Log.d(TOUCHPAD_TAG, "keyboard layout switched -> Hangul key");
+        }
+    };
+
+    // Touchpads that are not captured (local cursor) only report a tap as a synthesized touchscreen
+    // DOWN/UP pair after the finger is lifted, and never report the finger lifting after a move.
+    // Implement laptop-style tap to click and tap-and-drag on top of that:
+    // tap = left click, tap then touch and move = left drag that stays held (drag lock) until the next
+    // tap or a button click, since lifting the finger is never reported. Configurable in input settings.
+    private static final int TOUCHPAD_SECOND_TOUCH_GRACE_MS = 300;
+    private static final String TOUCHPAD_TAG = "TouchpadTap";
+    private final Handler touchpadTapHandler = new Handler(Looper.getMainLooper());
+    private final Runnable touchpadTapRelease = this::releaseTouchpadTapButton;
+    private boolean touchpadTapDown = false;
+    private boolean touchpadButtonHeld = false;
+    private boolean touchpadDragging = false;
+    private boolean touchpadSecondTouch = false;
+    private boolean touchpadFallbackSwipe = false;
+    private boolean touchpadPressedDrag = false;
+    private long touchpadTapTime = 0;
+
+    private void releaseTouchpadTapButton() {
+        touchpadTapHandler.removeCallbacks(touchpadTapRelease);
+        if (touchpadButtonHeld) {
+            touchpadButtonHeld = false;
+            conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_LEFT);
+            Log.d(TOUCHPAD_TAG, touchpadDragging ? "left up (drag end)" : "left up (click)");
+        }
+        touchpadDragging = false;
+    }
+
+    // Two finger swipe: vertical scrolls, horizontal can be mapped to the back/forward mouse buttons.
+    // The direction is locked once the fingers moved TOUCHPAD_SWIPE_SLOP_PX.
+    private static final int TOUCHPAD_SWIPE_NONE = 0, TOUCHPAD_SWIPE_UNDECIDED = 1, TOUCHPAD_SWIPE_SCROLL = 2, TOUCHPAD_SWIPE_NAV = 3;
+    private static final int TOUCHPAD_SWIPE_SLOP_PX = 40;
+    private static final int TOUCHPAD_SWIPE_NAV_PX = 200;
+    private int touchpadSwipeMode = TOUCHPAD_SWIPE_NONE;
+    private float touchpadSwipeStartX, touchpadSwipeStartY;
+    private boolean touchpadSwipeNavSent;
+
+    private boolean touchpadSwipeMove(MotionEvent event) {
+        if (touchpadSwipeMode == TOUCHPAD_SWIPE_NONE) {
+            touchpadSwipeMode = prefConfig.touchpadSwipeNavigation ? TOUCHPAD_SWIPE_UNDECIDED : TOUCHPAD_SWIPE_SCROLL;
+            touchpadSwipeStartX = event.getX();
+            touchpadSwipeStartY = event.getY();
+            touchpadSwipeNavSent = false;
+            if (touchpadSwipeMode == TOUCHPAD_SWIPE_SCROLL) {
+                pointerSwiping = true;
+                handleTouchInput(event, trackpadContextMap, false, prefConfig.trackpadSwapAxis, MotionEvent.ACTION_POINTER_DOWN, 1, 2);
+            }
+        }
+
+        float dx = event.getX() - touchpadSwipeStartX;
+        float dy = event.getY() - touchpadSwipeStartY;
+        if (touchpadSwipeMode == TOUCHPAD_SWIPE_UNDECIDED && Math.hypot(dx, dy) > TOUCHPAD_SWIPE_SLOP_PX) {
+            if (Math.abs(dx) > Math.abs(dy) * 1.5f) {
+                touchpadSwipeMode = TOUCHPAD_SWIPE_NAV;
+                Log.d(TOUCHPAD_TAG, "swipe -> navigation");
+            }
+            else {
+                touchpadSwipeMode = TOUCHPAD_SWIPE_SCROLL;
+                pointerSwiping = true;
+                handleTouchInput(event, trackpadContextMap, false, prefConfig.trackpadSwapAxis, MotionEvent.ACTION_POINTER_DOWN, 1, 2);
+                Log.d(TOUCHPAD_TAG, "swipe -> scroll");
+            }
+        }
+
+        if (touchpadSwipeMode == TOUCHPAD_SWIPE_SCROLL) {
+            return handleTouchInput(event, trackpadContextMap, false, prefConfig.trackpadSwapAxis, MotionEvent.ACTION_MOVE, 1, 2);
+        }
+        if (touchpadSwipeMode == TOUCHPAD_SWIPE_NAV && !touchpadSwipeNavSent && Math.abs(dx) > TOUCHPAD_SWIPE_NAV_PX) {
+            // Like laptop touchpads in browsers: fingers moving right go back
+            touchpadSwipeNavSent = true;
+            byte button = dx > 0 ? MouseButtonPacket.BUTTON_X1 : MouseButtonPacket.BUTTON_X2;
+            conn.sendMouseButtonDown(button);
+            conn.sendMouseButtonUp(button);
+            Log.d(TOUCHPAD_TAG, dx > 0 ? "swipe -> back" : "swipe -> forward");
+        }
+        return true;
+    }
+
+    private void touchpadSwipeEnd(MotionEvent event) {
+        if (pointerSwiping) {
+            pointerSwiping = false;
+            handleTouchInput(event, trackpadContextMap, false, prefConfig.trackpadSwapAxis, MotionEvent.ACTION_POINTER_UP, 1, 2);
+        }
+        touchpadSwipeMode = TOUCHPAD_SWIPE_NONE;
+        Log.d(TOUCHPAD_TAG, "swipe end");
+    }
+
+    private boolean handleTouchpadTap(MotionEvent event, int eventSource, int deviceSources) {
+        // Pointer devices only: real touchscreens report SOURCE_TOUCHSCREEN themselves
+        if ((deviceSources & InputDevice.SOURCE_MOUSE) != InputDevice.SOURCE_MOUSE ||
+                (deviceSources & InputDevice.SOURCE_TOUCHSCREEN) == InputDevice.SOURCE_TOUCHSCREEN ||
+                event.getPointerCount() < 1) {
+            return false;
+        }
+
+        int action = event.getActionMasked();
+        boolean finger = event.getToolType(0) == MotionEvent.TOOL_TYPE_FINGER;
+
+        // A two finger tap is reported as a secondary button press/release by a finger. Handle it here
+        // because the release event still carries the secondary button state and the following
+        // synthesized touch UP is swallowed below, so the generic button logic never sends the release.
+        if (finger && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                event.getActionButton() == MotionEvent.BUTTON_SECONDARY) {
+            byte button = "middle".equals(prefConfig.touchpadTwoFingerTap) ? MouseButtonPacket.BUTTON_MIDDLE : MouseButtonPacket.BUTTON_RIGHT;
+            boolean enabled = !"none".equals(prefConfig.touchpadTwoFingerTap);
+            if (action == MotionEvent.ACTION_BUTTON_PRESS) {
+                releaseTouchpadTapButton();
+                if (enabled) {
+                    conn.sendMouseButtonDown(button);
+                }
+                Log.d(TOUCHPAD_TAG, "two finger tap -> " + prefConfig.touchpadTwoFingerTap + " down");
+                return true;
+            }
+            else if (action == MotionEvent.ACTION_BUTTON_RELEASE) {
+                if (enabled) {
+                    conn.sendMouseButtonUp(button);
+                }
+                Log.d(TOUCHPAD_TAG, "two finger tap -> " + prefConfig.touchpadTwoFingerTap + " up");
+                return true;
+            }
+        }
+
+        // A physical button press takes over from any tap-held button
+        if (action == MotionEvent.ACTION_BUTTON_PRESS) {
+            Log.d(TOUCHPAD_TAG, "button press, state=" + event.getButtonState());
+            releaseTouchpadTapButton();
+            return false;
+        }
+
+        // Two finger swipes: classified ones, and ones Android gives up classifying for two close
+        // fingers (e.g. middle and ring finger), which arrive as a touch DOWN followed by plain MOVEs.
+        if (finger && action == MotionEvent.ACTION_DOWN && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                event.getClassification() == MotionEvent.CLASSIFICATION_TWO_FINGER_SWIPE) {
+            touchpadSwipeMode = TOUCHPAD_SWIPE_NONE;
+            return touchpadSwipeMove(event);
+        }
+        if (finger && (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) && touchpadPressedDrag) {
+            touchpadPressedDrag = false;
+            conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_LEFT);
+            Log.d(TOUCHPAD_TAG, "pressed drag end");
+            return true;
+        }
+        if (finger && action == MotionEvent.ACTION_MOVE &&
+                (touchpadSwipeMode != TOUCHPAD_SWIPE_NONE || touchpadTapDown || touchpadFallbackSwipe || touchpadPressedDrag)) {
+            if (touchpadTapDown) {
+                touchpadTapDown = false;
+                if (touchpadSwipeMode == TOUCHPAD_SWIPE_NONE) {
+                    // Not preceded by a (cancelled) two finger swipe: Android reports a pressed pointer
+                    // being moved, which does report the lift. Treat it as a left button drag.
+                    touchpadPressedDrag = true;
+                    if (touchpadButtonHeld) {
+                        // Android's own tap-and-drag right after our tap: keep the button pressed
+                        touchpadTapHandler.removeCallbacks(touchpadTapRelease);
+                        touchpadButtonHeld = false;
+                        touchpadDragging = false;
+                    }
+                    else {
+                        conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_LEFT);
+                    }
+                    Log.d(TOUCHPAD_TAG, "pressed drag start");
+                    return false;
+                }
+                touchpadFallbackSwipe = true;
+                Log.d(TOUCHPAD_TAG, "unclassified two finger swipe");
+            }
+            if (touchpadPressedDrag) {
+                return false;
+            }
+            return touchpadSwipeMove(event);
+        }
+        if (finger && (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) &&
+                (touchpadFallbackSwipe || (touchpadSwipeMode != TOUCHPAD_SWIPE_NONE && (action == MotionEvent.ACTION_UP || eventSource == InputDevice.SOURCE_TOUCHSCREEN)))) {
+            // The end of a two finger swipe arrives as a synthesized touch UP that would otherwise be dropped
+            touchpadFallbackSwipe = false;
+            touchpadTapDown = false;
+            touchpadSwipeEnd(event);
+            return true;
+        }
+
+        // The synthesized tap arrives as a touchscreen DOWN/UP when the stream is fullscreen, but as a
+        // mouse DOWN/UP without buttons when the window is in a desktop (PC mode) window.
+        boolean synthTouch = finger && (eventSource == InputDevice.SOURCE_TOUCHSCREEN ||
+                (eventSource == InputDevice.SOURCE_MOUSE && event.getButtonState() == 0 &&
+                        (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_UP)));
+        if (synthTouch) {
+            if (action == MotionEvent.ACTION_DOWN) {
+                // Could still turn out to be an unclassified swipe, decide on UP
+                touchpadTapDown = true;
+            }
+            else if (action == MotionEvent.ACTION_UP && touchpadTapDown) {
+                touchpadTapDown = false;
+                // A tap while dragging just drops what is being dragged
+                boolean endsDrag = touchpadDragging;
+                releaseTouchpadTapButton();
+                if (endsDrag) {
+                    Log.d(TOUCHPAD_TAG, "tap ends drag");
+                }
+                else if (!prefConfig.touchpadTapToClick) {
+                    Log.d(TOUCHPAD_TAG, "tap ignored (tap to click off)");
+                }
+                else if (!prefConfig.touchpadTapDrag) {
+                    conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_LEFT);
+                    conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_LEFT);
+                    Log.d(TOUCHPAD_TAG, "tap -> left click");
+                }
+                else {
+                    // Android only reports the tap once the finger is lifted, so press now and
+                    // hold the button briefly so a following touch can turn this into a drag
+                    touchpadButtonHeld = true;
+                    touchpadSecondTouch = false;
+                    touchpadTapTime = event.getEventTime();
+                    conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_LEFT);
+                    Log.d(TOUCHPAD_TAG, "tap -> left down, waiting for drag");
+                    touchpadTapHandler.postDelayed(touchpadTapRelease, prefConfig.touchpadTapDragWindow);
+                }
+            }
+            else {
+                // Other synthesized touches (like the lift of a two finger tap) are not clicks
+                Log.d(TOUCHPAD_TAG, "ignored " + MotionEvent.actionToString(action));
+            }
+            return true;
+        }
+
+        if (eventSource == InputDevice.SOURCE_MOUSE && finger) {
+            if (action == MotionEvent.ACTION_HOVER_MOVE && touchpadButtonHeld) {
+                // Touching the pad again emits a zero movement event. Give the finger a moment to start
+                // moving; only real movement makes it a drag, so a double tap still ends with the next
+                // tap as a double click.
+                boolean moved = event.getAxisValue(MotionEvent.AXIS_RELATIVE_X) != 0 ||
+                        event.getAxisValue(MotionEvent.AXIS_RELATIVE_Y) != 0;
+                if (!touchpadSecondTouch) {
+                    touchpadSecondTouch = true;
+                    Log.d(TOUCHPAD_TAG, "second touch after " + (event.getEventTime() - touchpadTapTime) + "ms, moved=" + moved);
+                }
+                if (moved && !touchpadDragging) {
+                    touchpadDragging = true;
+                    Log.d(TOUCHPAD_TAG, "drag start");
+                }
+                touchpadTapHandler.removeCallbacks(touchpadTapRelease);
+                if (!touchpadDragging) {
+                    touchpadTapHandler.postDelayed(touchpadTapRelease, TOUCHPAD_SECOND_TOUCH_GRACE_MS);
+                }
+            }
+            else if (action == MotionEvent.ACTION_HOVER_ENTER || action == MotionEvent.ACTION_HOVER_EXIT) {
+                // These bracket synthesized taps, which are handled above
+                return true;
+            }
+        }
+        return false;
+    }
+
     // Returns true if the event was consumed
     // NB: View is only present if called from a view callback
     public boolean handleMotionEvent(View view, MotionEvent event) {
@@ -2781,6 +3100,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         int eventSource = event.getSource();
         int deviceSources = event.getDevice() != null ? event.getDevice().getSources() : 0;
+        if (handleTouchpadTap(event, eventSource, deviceSources)) {
+            return true;
+        }
         if ((eventSource & InputDevice.SOURCE_CLASS_JOYSTICK) != 0) {
             if (controllerHandler.handleMotionEvent(event)) {
                 return true;

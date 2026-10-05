@@ -38,6 +38,7 @@ public class TrackpadContext implements TouchContext {
     private boolean swapAxis = false;
     private float sensitivityX = 1;
     private float sensitivityY = 1;
+    private float scrollSpeed = 1;
 
     private static final int TAP_MOVEMENT_THRESHOLD = 30;
     private static final int TAP_TIME_THRESHOLD = 230;
@@ -58,11 +59,12 @@ public class TrackpadContext implements TouchContext {
         this.handler = new Handler(Looper.getMainLooper());
     }
 
-    public TrackpadContext(NvConnection conn, int actionIndex, boolean swapAxis, int sensitivityX, int sensitivityY) {
+    public TrackpadContext(NvConnection conn, int actionIndex, boolean swapAxis, int sensitivityX, int sensitivityY, int scrollSpeed) {
         this(conn, actionIndex);
         this.swapAxis = swapAxis;
         this.sensitivityX = (float) sensitivityX / 100;
         this.sensitivityY = (float) sensitivityY / 100;
+        this.scrollSpeed = (float) scrollSpeed / 100;
     }
 
     private final Runnable scrollTransitionRunnable = new Runnable() {
@@ -119,14 +121,14 @@ public class TrackpadContext implements TouchContext {
             double frameVelocityY = velocityY * MOMENTUM_FRAME_INTERVAL_MS;
 
             if (Math.abs(frameVelocityX) > Math.abs(frameVelocityY)) {
-                conn.sendMouseHighResHScroll((short)(-frameVelocityX * SCROLL_SPEED_FACTOR_X));
+                conn.sendMouseHighResHScroll((short)(-frameVelocityX * SCROLL_SPEED_FACTOR_X * scrollSpeed));
                 if (Math.abs(frameVelocityY) * 1.05 > Math.abs(frameVelocityX)) {
-                    conn.sendMouseHighResScroll((short)(frameVelocityY * SCROLL_SPEED_FACTOR_Y));
+                    conn.sendMouseHighResScroll((short)(frameVelocityY * SCROLL_SPEED_FACTOR_Y * scrollSpeed));
                 }
             } else {
-                conn.sendMouseHighResScroll((short)(frameVelocityY * SCROLL_SPEED_FACTOR_Y));
+                conn.sendMouseHighResScroll((short)(frameVelocityY * SCROLL_SPEED_FACTOR_Y * scrollSpeed));
                 if (Math.abs(frameVelocityX) * 1.05 >= Math.abs(frameVelocityY)) {
-                    conn.sendMouseHighResHScroll((short)(-frameVelocityX * SCROLL_SPEED_FACTOR_X));
+                    conn.sendMouseHighResHScroll((short)(-frameVelocityX * SCROLL_SPEED_FACTOR_X * scrollSpeed));
                 }
             }
 
@@ -389,14 +391,14 @@ public class TrackpadContext implements TouchContext {
                         checkForConfirmedScroll();
                         if (confirmedScroll) {
                             if (absDeltaX > absDeltaY) {
-                                conn.sendMouseHighResHScroll((short)(-sendDeltaX * SCROLL_SPEED_FACTOR_X));
+                                conn.sendMouseHighResHScroll((short)(-sendDeltaX * SCROLL_SPEED_FACTOR_X * scrollSpeed));
                                 if (absDeltaY * 1.05 > absDeltaX) {
-                                    conn.sendMouseHighResScroll((short)(sendDeltaY * SCROLL_SPEED_FACTOR_Y));
+                                    conn.sendMouseHighResScroll((short)(sendDeltaY * SCROLL_SPEED_FACTOR_Y * scrollSpeed));
                                 }
                             } else {
-                                conn.sendMouseHighResScroll((short)(sendDeltaY * SCROLL_SPEED_FACTOR_Y));
+                                conn.sendMouseHighResScroll((short)(sendDeltaY * SCROLL_SPEED_FACTOR_Y * scrollSpeed));
                                 if (absDeltaX * 1.05 >= absDeltaY) {
-                                    conn.sendMouseHighResHScroll((short)(-sendDeltaX * SCROLL_SPEED_FACTOR_X));
+                                    conn.sendMouseHighResHScroll((short)(-sendDeltaX * SCROLL_SPEED_FACTOR_X * scrollSpeed));
                                 }
                             }
                         }

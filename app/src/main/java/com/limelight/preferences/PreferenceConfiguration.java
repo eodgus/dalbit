@@ -133,8 +133,16 @@ public class PreferenceConfiguration {
     private static final String SEEKBAR_TOUCH_SENSITIVITY = "seekbar_touch_sensitivity_opacity_x";
     private static final String SEEKBAR_TRACKPAD_SENSITIVITY_X = "seekbar_trackpad_sensitivity_x";
     private static final String SEEKBAR_TRACKPAD_SENSITIVITY_Y = "seekbar_trackpad_sensitivity_y";
+    private static final String SEEKBAR_TRACKPAD_SCROLL_SPEED = "seekbar_trackpad_scroll_speed";
     private static final String CHECKBOX_TRACKPAD_DRAG_DROP_VIBRATION = "checkbox_trackpad_drag_drop_vibration";
     private static final String SEEKBAR_TRACKPAD_DRAG_DROP_THRESHOLD = "seekbar_trackpad_drag_drop_threshold";
+    private static final String CHECKBOX_TOUCHPAD_TAP_TO_CLICK = "checkbox_touchpad_tap_to_click";
+    private static final String CHECKBOX_LANGUAGE_SWITCH_HANGUL = "checkbox_language_switch_hangul";
+    private static final String CHECKBOX_ESC_HOLD_MENU = "checkbox_esc_hold_menu";
+    private static final String LIST_TOUCHPAD_TWO_FINGER_TAP = "list_touchpad_two_finger_tap";
+    private static final String CHECKBOX_TOUCHPAD_TAP_DRAG = "checkbox_touchpad_tap_drag";
+    private static final String CHECKBOX_TOUCHPAD_SWIPE_NAVIGATION = "checkbox_touchpad_swipe_navigation";
+    private static final String SEEKBAR_TOUCHPAD_TAP_DRAG_WINDOW = "seekbar_touchpad_tap_drag_window";
     private static final String CHECKBOX_TRACKPAD_SWAP_AXIS = "checkbox_trackpad_swap_axis";
 
     private static final String CHECKBOX_ENABLE_COMMIT_TEXT = "checkbox_enable_commit_text";
@@ -204,8 +212,16 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_ENABLE_STICKY_MODIFIER_KEY_VIRTUAL_KEYBOARD = true;
     private static final int DEFAULT_TRACKPAD_SENSITIVITY_X = 100;
     private static final int DEFAULT_TRACKPAD_SENSITIVITY_Y = 100;
+    private static final int DEFAULT_TRACKPAD_SCROLL_SPEED = 100;
     private static final boolean DEFAULT_TRACKPAD_DRAG_DROP_VIBRATION = false;
     private static final int DEFAULT_TRACKPAD_DRAG_DROP_THRESHOLD = 250;
+    private static final boolean DEFAULT_TOUCHPAD_TAP_TO_CLICK = true;
+    private static final boolean DEFAULT_LANGUAGE_SWITCH_HANGUL = false;
+    private static final boolean DEFAULT_ESC_HOLD_MENU = false;
+    private static final String DEFAULT_TOUCHPAD_TWO_FINGER_TAP = "right";
+    private static final boolean DEFAULT_TOUCHPAD_TAP_DRAG = true;
+    private static final boolean DEFAULT_TOUCHPAD_SWIPE_NAVIGATION = false;
+    private static final int DEFAULT_TOUCHPAD_TAP_DRAG_WINDOW = 200;
     private static final boolean DEFAULT_TRACKPAD_SWAP_AXIS = false;
     private static final boolean DEFAULT_ENABLE_COMMIT_TEXT = false;
     private static final String DEFAULT_ONSCREEN_KEYBOARD_ALIGN_MODE = "center";
@@ -351,8 +367,16 @@ public class PreferenceConfiguration {
 
     public int trackpadSensitivityX;
     public int trackpadSensitivityY;
+    public int trackpadScrollSpeed;
     public boolean trackpadDragDropVibration;
     public int trackpadDragDropThreshold;
+    public boolean touchpadTapToClick;
+    public boolean languageSwitchHangul;
+    public boolean escHoldMenu;
+    public String touchpadTwoFingerTap;
+    public boolean touchpadTapDrag;
+    public boolean touchpadSwipeNavigation;
+    public int touchpadTapDragWindow;
     public boolean trackpadSwapAxis;
 
     public boolean bindAllUsb;
@@ -1001,8 +1025,16 @@ private static int getFramePacingValue(Context context) {
 
         config.trackpadSensitivityX = prefs.getInt(SEEKBAR_TRACKPAD_SENSITIVITY_X, DEFAULT_TRACKPAD_SENSITIVITY_X);
         config.trackpadSensitivityY = prefs.getInt(SEEKBAR_TRACKPAD_SENSITIVITY_Y, DEFAULT_TRACKPAD_SENSITIVITY_Y);
+        config.trackpadScrollSpeed = prefs.getInt(SEEKBAR_TRACKPAD_SCROLL_SPEED, DEFAULT_TRACKPAD_SCROLL_SPEED);
         config.trackpadDragDropVibration = prefs.getBoolean(CHECKBOX_TRACKPAD_DRAG_DROP_VIBRATION, DEFAULT_TRACKPAD_DRAG_DROP_VIBRATION);
         config.trackpadDragDropThreshold = prefs.getInt(SEEKBAR_TRACKPAD_DRAG_DROP_THRESHOLD, DEFAULT_TRACKPAD_DRAG_DROP_THRESHOLD);
+        config.touchpadTapToClick = prefs.getBoolean(CHECKBOX_TOUCHPAD_TAP_TO_CLICK, DEFAULT_TOUCHPAD_TAP_TO_CLICK);
+        config.languageSwitchHangul = prefs.getBoolean(CHECKBOX_LANGUAGE_SWITCH_HANGUL, DEFAULT_LANGUAGE_SWITCH_HANGUL);
+        config.escHoldMenu = prefs.getBoolean(CHECKBOX_ESC_HOLD_MENU, DEFAULT_ESC_HOLD_MENU);
+        config.touchpadTwoFingerTap = prefs.getString(LIST_TOUCHPAD_TWO_FINGER_TAP, DEFAULT_TOUCHPAD_TWO_FINGER_TAP);
+        config.touchpadTapDrag = prefs.getBoolean(CHECKBOX_TOUCHPAD_TAP_DRAG, DEFAULT_TOUCHPAD_TAP_DRAG);
+        config.touchpadSwipeNavigation = prefs.getBoolean(CHECKBOX_TOUCHPAD_SWIPE_NAVIGATION, DEFAULT_TOUCHPAD_SWIPE_NAVIGATION);
+        config.touchpadTapDragWindow = prefs.getInt(SEEKBAR_TOUCHPAD_TAP_DRAG_WINDOW, DEFAULT_TOUCHPAD_TAP_DRAG_WINDOW);
         config.trackpadSwapAxis = prefs.getBoolean(CHECKBOX_TRACKPAD_SWAP_AXIS, DEFAULT_TRACKPAD_SWAP_AXIS);
 
         config.absoluteMouseMode = prefs.getBoolean(ABSOLUTE_MOUSE_MODE_PREF_STRING, DEFAULT_ABSOLUTE_MOUSE_MODE);
