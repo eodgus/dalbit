@@ -29,6 +29,7 @@ import com.limelight.binding.video.CrashListener;
 import com.limelight.binding.video.MediaCodecDecoderRenderer;
 import com.limelight.binding.video.MediaCodecHelper;
 import com.limelight.binding.video.PerfOverlayListener;
+import com.limelight.computers.ComputerManagerService;
 import com.limelight.nvstream.NvConnection;
 import com.limelight.nvstream.NvConnectionListener;
 import com.limelight.nvstream.StreamConfiguration;
@@ -59,12 +60,14 @@ import android.annotation.TargetApi;
 import android.app.AlertDialog;
 import android.app.PictureInPictureParams;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipDescription;
 import android.content.ClipboardManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
@@ -222,6 +225,57 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private float lastAbsTouchDownX, lastAbsTouchDownY;
 
     private boolean quitOnStop = false;
+
+    // The stream went over the USB tethering link, so losing that link should reconnect over Wi-Fi
+    private boolean usbTetherStream;
+    private volatile boolean usbSwitchPending;
+    // Moves a USB stream to Wi-Fi as soon as the cable or tethering goes, without waiting for the
+    // stream to time out. Moves a Wi-Fi stream to USB once tethering comes up with the host on it.
+    // ponytail: whatever answers on the tethering link is taken to be this host, a tablet tethers one PC
+    private final BroadcastReceiver usbStateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (isInitialStickyBroadcast() || !connected || displayedFailureDialog) {
+                return;
+            }
+            if (usbTetherStream) {
+                if (!intent.getBooleanExtra("connected", false) || !intent.getBooleanExtra("rndis", false)) {
+                    LimeLog.info("USB tethering went away, reconnecting");
+                    displayedFailureDialog = true;
+                    stopConnection();
+                    reconnect();
+                }
+                return;
+            }
+            if (usbSwitchPending || !ProfilesManager.getInstance().getOverlayingSharedPreferences(Game.this)
+                    .getBoolean(ComputerManagerService.PREFER_USB_TETHER_PREF, true)) {
+                return;
+            }
+            usbSwitchPending = true;
+            new Thread(() -> {
+                try {
+                    // The host needs a few seconds to get its address on a new link
+                    for (int i = 0; i < 5; i++) {
+                        Thread.sleep(2000);
+                        String self = ComputerManagerService.getUsbTetherAddress();
+                        if (self != null && ComputerManagerService.scanUsbTether(self, port) != null) {
+                            runOnUiThread(() -> {
+                                if (connected && !displayedFailureDialog) {
+                                    LimeLog.info("Host reachable on USB tethering link, reconnecting");
+                                    displayedFailureDialog = true;
+                                    stopConnection();
+                                    reconnect();
+                                }
+                            });
+                            break;
+                        }
+                    }
+                } catch (InterruptedException ignored) {
+                }
+                usbSwitchPending = false;
+            }).start();
+        }
+    };
     private boolean isHidingOverlays;
     private boolean floatingButtonShown;
     private boolean overlayToggleZoomButtonShown;
@@ -585,6 +639,15 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         byte[] derCertData = Game.this.getIntent().getByteArrayExtra(EXTRA_SERVER_CERT);
 
         app = new NvApp(appName != null ? appName : "app", appUUID, appId, appSupportsHdr);
+
+        usbTetherStream = ComputerManagerService.isOnUsbTether(host);
+        IntentFilter usbStateFilter = new IntentFilter("android.hardware.usb.action.USB_STATE");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(usbStateReceiver, usbStateFilter, RECEIVER_NOT_EXPORTED);
+        }
+        else {
+            registerReceiver(usbStateReceiver, usbStateFilter);
+        }
 
         try {
             if (derCertData != null) {
@@ -1729,6 +1792,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         instance = null;
         timerHandler.removeCallbacksAndMessages(null);
+
+        try {
+            unregisterReceiver(usbStateReceiver);
+        } catch (IllegalArgumentException ignored) {
+            // onCreate returned before registering it
+        }
 
         if (prefConfig.enableFullExDisplay) handleDisplayRemoved();
 
@@ -3941,6 +4010,22 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         return false;
     }
 
+    // Resumes this app through ShortcutTrampoline, which repolls the host's addresses and
+    // shows the usual offline error if none of them answers
+    private void reconnect() {
+        Intent i = new Intent(this, ShortcutTrampoline.class)
+                .putExtra(AppView.UUID_EXTRA, getIntent().getStringExtra(EXTRA_PC_UUID))
+                .putExtra(EXTRA_APP_NAME, appName)
+                .putExtra(EXTRA_APP_ID, String.valueOf(appId))
+                .putExtra(EXTRA_APP_HDR, app.isHdrSupported());
+        if (appId < 0) {
+            // Launched by UUID only
+            i.putExtra(EXTRA_APP_UUID, appUUID);
+        }
+        startActivity(i);
+        finish();
+    }
+
     private void finishSecondScreen() {
         // Otherwise screen stays connected but not working with no way of quitting it
         if (prefConfig.enableFullExDisplay) {
@@ -3960,6 +4045,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // This does network I/O, so don't do it on the main thread.
         final int portFlags = MoonBridge.getPortFlagsFromTerminationErrorCode(errorCode);
         final int portTestResult = MoonBridge.testClientConnectivity(ServerHelper.CONNECTION_TEST_SERVER,443, portFlags);
+        final boolean usbTetherLost = usbTetherStream && !ComputerManagerService.isOnUsbTether(host);
 
         runOnUiThread(new Runnable() {
             @Override
@@ -3981,7 +4067,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                     // Display the error dialog if it was an unexpected termination.
                     // Otherwise, just finish the activity immediately.
-                    if (errorCode != MoonBridge.ML_ERROR_GRACEFUL_TERMINATION) {
+                    if (errorCode != MoonBridge.ML_ERROR_GRACEFUL_TERMINATION && usbTetherLost) {
+                        // The cable came out. The host session keeps running, so pick it up over Wi-Fi.
+                        LimeLog.info("USB tethering link lost, reconnecting");
+                        reconnect();
+                    }
+                    else if (errorCode != MoonBridge.ML_ERROR_GRACEFUL_TERMINATION) {
                         String message;
 
                         if (portTestResult != MoonBridge.ML_TEST_RESULT_INCONCLUSIVE && portTestResult != 0) {

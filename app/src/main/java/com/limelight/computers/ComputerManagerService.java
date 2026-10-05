@@ -67,7 +67,7 @@ public class ComputerManagerService extends Service {
     private static final int POLL_DATA_TTL_MS = 30000;
     private static final int USB_SCAN_PERIOD_MS = 10000;
     private static final int USB_PROBE_TIMEOUT_MS = 300;
-    private static final String PREFER_USB_TETHER_PREF = "checkbox_prefer_usb_tether";
+    public static final String PREFER_USB_TETHER_PREF = "checkbox_prefer_usb_tether";
 
     private final ComputerManagerBinder binder = new ComputerManagerBinder();
 
@@ -642,13 +642,9 @@ public class ComputerManagerService extends Service {
         tuple.pollingThread.start();
     }
 
-    // Finds the host on this device's USB tethering link, so a cable wins over Wi-Fi and WAN.
-    // Returns null when there's no tethered link or when the local address is already on it.
-    // ponytail: assumes the /24 Android gives tethering and scans it; read the DHCP leases if that changes
-    private ComputerDetails.AddressTuple findUsbHost(ComputerDetails details) throws InterruptedException {
-        if (!ProfilesManager.getInstance().getOverlayingSharedPreferences(this).getBoolean(PREFER_USB_TETHER_PREF, true)) {
-            return null;
-        }
+    // This device's IPv4 address on a USB tethering link, or null when there's none.
+    // ponytail: assumes the /24 Android gives tethering; read the DHCP leases if that changes
+    public static String getUsbTetherAddress() {
         String self = null;
         try {
             for (NetworkInterface nif : Collections.list(NetworkInterface.getNetworkInterfaces())) {
@@ -664,24 +660,21 @@ public class ComputerManagerService extends Service {
         } catch (SocketException e) {
             return null;
         }
-        if (self == null) {
-            return null;
-        }
+        return self;
+    }
 
-        String prefix = self.substring(0, self.lastIndexOf('.') + 1);
-        if (details.localAddress != null && details.localAddress.address.startsWith(prefix)) {
-            // Polled first anyway. If it went stale, the fallback poll moves it off this subnet.
-            return null;
-        }
+    private static String usbTetherPrefix(String self) {
+        return self.substring(0, self.lastIndexOf('.') + 1);
+    }
 
-        synchronized (this) {
-            if (SystemClock.elapsedRealtime() - lastUsbScanTime < USB_SCAN_PERIOD_MS) {
-                return null;
-            }
-            lastUsbScanTime = SystemClock.elapsedRealtime();
-        }
+    public static boolean isOnUsbTether(String host) {
+        String self = getUsbTetherAddress();
+        return self != null && host != null && host.startsWith(usbTetherPrefix(self));
+    }
 
-        int port = details.localAddress != null ? details.localAddress.port : NvHTTP.DEFAULT_HTTP_PORT;
+    // Scans the USB tethering link that self is on for something listening on the host port
+    public static String scanUsbTether(String self, int port) throws InterruptedException {
+        String prefix = usbTetherPrefix(self);
         List<Callable<String>> probes = new ArrayList<>();
         for (int i = 1; i < 255; i++) {
             String host = prefix + i;
@@ -698,14 +691,44 @@ public class ComputerManagerService extends Service {
 
         ExecutorService pool = Executors.newFixedThreadPool(64);
         try {
-            String host = pool.invokeAny(probes, 3, TimeUnit.SECONDS);
-            LimeLog.info("Found host on USB tethering link: " + host);
-            return new ComputerDetails.AddressTuple(host, port);
+            return pool.invokeAny(probes, 3, TimeUnit.SECONDS);
         } catch (ExecutionException | TimeoutException e) {
             return null;
         } finally {
             pool.shutdownNow();
         }
+    }
+
+    // Finds the host on this device's USB tethering link, so a cable wins over Wi-Fi and WAN.
+    // Returns null when there's no tethered link or when the local address is already on it.
+    private ComputerDetails.AddressTuple findUsbHost(ComputerDetails details) throws InterruptedException {
+        if (!ProfilesManager.getInstance().getOverlayingSharedPreferences(this).getBoolean(PREFER_USB_TETHER_PREF, true)) {
+            return null;
+        }
+        String self = getUsbTetherAddress();
+        if (self == null) {
+            return null;
+        }
+
+        if (details.localAddress != null && details.localAddress.address.startsWith(usbTetherPrefix(self))) {
+            // Polled first anyway. If it went stale, the fallback poll moves it off this subnet.
+            return null;
+        }
+
+        synchronized (this) {
+            if (SystemClock.elapsedRealtime() - lastUsbScanTime < USB_SCAN_PERIOD_MS) {
+                return null;
+            }
+            lastUsbScanTime = SystemClock.elapsedRealtime();
+        }
+
+        int port = details.localAddress != null ? details.localAddress.port : NvHTTP.DEFAULT_HTTP_PORT;
+        String host = scanUsbTether(self, port);
+        if (host == null) {
+            return null;
+        }
+        LimeLog.info("Found host on USB tethering link: " + host);
+        return new ComputerDetails.AddressTuple(host, port);
     }
 
     private ComputerDetails parallelPollPc(ComputerDetails details) throws InterruptedException {
