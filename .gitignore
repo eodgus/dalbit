@@ -47,3 +47,7 @@ app/.externalNativeBuild/
 
 # agent files
 AGENTS.md
+
+# Release signing secrets
+keystore.properties
+*.jks
