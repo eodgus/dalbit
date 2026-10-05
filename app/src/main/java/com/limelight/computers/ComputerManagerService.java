@@ -5,10 +5,23 @@ import java.io.OutputStream;
 import java.io.StringReader;
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.InterfaceAddress;
+import java.net.NetworkInterface;
+import java.net.Socket;
+import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -51,6 +64,8 @@ public class ComputerManagerService extends Service {
     private static final int INITIAL_POLL_TRIES = 2;
     private static final int EMPTY_LIST_THRESHOLD = 3;
     private static final int POLL_DATA_TTL_MS = 30000;
+    private static final int USB_SCAN_PERIOD_MS = 10000;
+    private static final int USB_PROBE_TIMEOUT_MS = 300;
 
     private final ComputerManagerBinder binder = new ComputerManagerBinder();
 
@@ -63,6 +78,7 @@ public class ComputerManagerService extends Service {
     private final AtomicInteger activePolls = new AtomicInteger(0);
     private boolean pollingActive = false;
     private final Lock defaultNetworkLock = new ReentrantLock();
+    private long lastUsbScanTime;
 
     private ConnectivityManager.NetworkCallback networkCallback;
 
@@ -624,75 +640,104 @@ public class ComputerManagerService extends Service {
         tuple.pollingThread.start();
     }
 
-    private ComputerDetails parallelPollPc(ComputerDetails details) throws InterruptedException {
-        ParallelPollTuple localInfo = new ParallelPollTuple(details.localAddress, details);
-        ParallelPollTuple manualInfo = new ParallelPollTuple(details.manualAddress, details);
-        ParallelPollTuple remoteInfo = new ParallelPollTuple(details.remoteAddress, details);
-        ParallelPollTuple ipv6Info = new ParallelPollTuple(details.ipv6Address, details);
+    // Finds the host on this device's USB tethering link, so a cable wins over Wi-Fi and WAN.
+    // Returns null when there's no tethered link or when the local address is already on it.
+    // ponytail: assumes the /24 Android gives tethering and scans it; read the DHCP leases if that changes
+    private ComputerDetails.AddressTuple findUsbHost(ComputerDetails details) throws InterruptedException {
+        String self = null;
+        try {
+            for (NetworkInterface nif : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                if (!nif.isUp() || !nif.getName().matches("(rndis|usb|ncm)\\d+")) {
+                    continue;
+                }
+                for (InterfaceAddress ia : nif.getInterfaceAddresses()) {
+                    if (ia.getAddress() instanceof Inet4Address && ia.getNetworkPrefixLength() == 24) {
+                        self = ia.getAddress().getHostAddress();
+                    }
+                }
+            }
+        } catch (SocketException e) {
+            return null;
+        }
+        if (self == null) {
+            return null;
+        }
 
-        // These must be started in order of precedence for the deduplication algorithm
-        // to result in the correct behavior.
+        String prefix = self.substring(0, self.lastIndexOf('.') + 1);
+        if (details.localAddress != null && details.localAddress.address.startsWith(prefix)) {
+            // Polled first anyway. If it went stale, the fallback poll moves it off this subnet.
+            return null;
+        }
+
+        synchronized (this) {
+            if (SystemClock.elapsedRealtime() - lastUsbScanTime < USB_SCAN_PERIOD_MS) {
+                return null;
+            }
+            lastUsbScanTime = SystemClock.elapsedRealtime();
+        }
+
+        int port = details.localAddress != null ? details.localAddress.port : NvHTTP.DEFAULT_HTTP_PORT;
+        List<Callable<String>> probes = new ArrayList<>();
+        for (int i = 1; i < 255; i++) {
+            String host = prefix + i;
+            if (host.equals(self)) {
+                continue;
+            }
+            probes.add(() -> {
+                try (Socket s = new Socket()) {
+                    s.connect(new InetSocketAddress(host, port), USB_PROBE_TIMEOUT_MS);
+                    return host;
+                }
+            });
+        }
+
+        ExecutorService pool = Executors.newFixedThreadPool(64);
+        try {
+            String host = pool.invokeAny(probes, 3, TimeUnit.SECONDS);
+            LimeLog.info("Found host on USB tethering link: " + host);
+            return new ComputerDetails.AddressTuple(host, port);
+        } catch (ExecutionException | TimeoutException e) {
+            return null;
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    private ComputerDetails parallelPollPc(ComputerDetails details) throws InterruptedException {
+        // In order of precedence. They must also be started in this order for the
+        // deduplication algorithm to result in the correct behavior.
+        ParallelPollTuple[] tuples = {
+                new ParallelPollTuple(findUsbHost(details), details),
+                new ParallelPollTuple(details.localAddress, details),
+                new ParallelPollTuple(details.manualAddress, details),
+                new ParallelPollTuple(details.remoteAddress, details),
+                new ParallelPollTuple(details.ipv6Address, details),
+        };
+
         HashSet<ComputerDetails.AddressTuple> uniqueAddresses = new HashSet<>();
-        startParallelPollThread(localInfo, uniqueAddresses);
-        startParallelPollThread(manualInfo, uniqueAddresses);
-        startParallelPollThread(remoteInfo, uniqueAddresses);
-        startParallelPollThread(ipv6Info, uniqueAddresses);
+        for (ParallelPollTuple tuple : tuples) {
+            startParallelPollThread(tuple, uniqueAddresses);
+        }
 
         try {
-            // Check local first
-            synchronized (localInfo) {
-                while (!localInfo.complete) {
-                    localInfo.wait();
-                }
+            for (ParallelPollTuple tuple : tuples) {
+                synchronized (tuple) {
+                    while (!tuple.complete) {
+                        tuple.wait();
+                    }
 
-                if (localInfo.returnedDetails != null) {
-                    localInfo.returnedDetails.activeAddress = localInfo.address;
-                    return localInfo.returnedDetails;
-                }
-            }
-
-            // Now manual
-            synchronized (manualInfo) {
-                while (!manualInfo.complete) {
-                    manualInfo.wait();
-                }
-
-                if (manualInfo.returnedDetails != null) {
-                    manualInfo.returnedDetails.activeAddress = manualInfo.address;
-                    return manualInfo.returnedDetails;
-                }
-            }
-
-            // Now remote IPv4
-            synchronized (remoteInfo) {
-                while (!remoteInfo.complete) {
-                    remoteInfo.wait();
-                }
-
-                if (remoteInfo.returnedDetails != null) {
-                    remoteInfo.returnedDetails.activeAddress = remoteInfo.address;
-                    return remoteInfo.returnedDetails;
-                }
-            }
-
-            // Now global IPv6
-            synchronized (ipv6Info) {
-                while (!ipv6Info.complete) {
-                    ipv6Info.wait();
-                }
-
-                if (ipv6Info.returnedDetails != null) {
-                    ipv6Info.returnedDetails.activeAddress = ipv6Info.address;
-                    return ipv6Info.returnedDetails;
+                    if (tuple.returnedDetails != null) {
+                        tuple.returnedDetails.activeAddress = tuple.address;
+                        return tuple.returnedDetails;
+                    }
                 }
             }
         } finally {
             // Stop any further polling if we've found a working address or we've been
             // interrupted by an attempt to stop polling.
-            localInfo.interrupt();
-            manualInfo.interrupt();
-            remoteInfo.interrupt();
-            ipv6Info.interrupt();
+            for (ParallelPollTuple tuple : tuples) {
+                tuple.interrupt();
+            }
         }
 
         return null;
