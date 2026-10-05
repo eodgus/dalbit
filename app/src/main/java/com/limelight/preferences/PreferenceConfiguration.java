@@ -374,6 +374,8 @@ public class PreferenceConfiguration {
     public int trackpadDragDropThreshold;
     public boolean touchpadTapToClick;
     public boolean languageSwitchHangul;
+    public boolean trackpadWithoutKeyboard;
+    public String touchscreenApps;
     public boolean escHoldMenu;
     public String touchpadTwoFingerTap;
     public boolean touchpadTapDrag;
@@ -1033,6 +1035,8 @@ private static int getFramePacingValue(Context context) {
         config.trackpadDragDropThreshold = prefs.getInt(SEEKBAR_TRACKPAD_DRAG_DROP_THRESHOLD, DEFAULT_TRACKPAD_DRAG_DROP_THRESHOLD);
         config.touchpadTapToClick = prefs.getBoolean(CHECKBOX_TOUCHPAD_TAP_TO_CLICK, DEFAULT_TOUCHPAD_TAP_TO_CLICK);
         config.languageSwitchHangul = prefs.getBoolean(CHECKBOX_LANGUAGE_SWITCH_HANGUL, DEFAULT_LANGUAGE_SWITCH_HANGUL);
+        config.trackpadWithoutKeyboard = prefs.getBoolean("checkbox_trackpad_without_keyboard", false);
+        config.touchscreenApps = prefs.getString("edit_touchscreen_apps", "");
         config.escHoldMenu = prefs.getBoolean(CHECKBOX_ESC_HOLD_MENU, DEFAULT_ESC_HOLD_MENU);
         config.touchpadTwoFingerTap = prefs.getString(LIST_TOUCHPAD_TWO_FINGER_TAP, DEFAULT_TOUCHPAD_TWO_FINGER_TAP);
         config.touchpadTapDrag = prefs.getBoolean(CHECKBOX_TOUCHPAD_TAP_DRAG, DEFAULT_TOUCHPAD_TAP_DRAG);

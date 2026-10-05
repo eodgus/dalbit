@@ -539,6 +539,10 @@
     <string name="title_host_audio_only_apps">Host-only audio apps</string>
     <string name="summary_host_audio_only_apps">Comma separated app names (partial match). For these apps audio plays only on the host PC and this device stays silent, e.g. an extended desktop used at the PC.</string>
     <string name="title_language_switch_hangul">Send Hangul key on keyboard language switch</string>
+    <string name="title_trackpad_without_keyboard">Use the screen as a trackpad without a keyboard</string>
+    <string name="summary_trackpad_without_keyboard">Use the selected mouse mode while a physical keyboard is attached, and the natural trackpad mode while none is</string>
+    <string name="title_touchscreen_apps">Touchscreen apps</string>
+    <string name="summary_touchscreen_apps">Comma separated app names (partial match). These apps always use the screen as a touchscreen (multi-touch), with or without a keyboard, e.g. an extended desktop.</string>
     <string name="summary_language_switch_hangul">When the tablet switches the physical keyboard language (e.g. right Alt on Lenovo), also toggle Korean/English on the host</string>
     <string name="title_touchpad_tap_to_click">Touchpad tap to click (local cursor)</string>
     <string name="summary_touchpad_tap_to_click">Send a left click when tapping a keyboard cover touchpad while using the local mouse cursor</string>

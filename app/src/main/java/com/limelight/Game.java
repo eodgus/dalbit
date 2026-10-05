@@ -12,6 +12,7 @@ import com.limelight.binding.PlatformBinding;
 import com.limelight.binding.audio.AndroidAudioRenderer;
 import com.limelight.binding.input.ControllerHandler;
 import com.limelight.binding.input.GameInputDevice;
+import com.limelight.binding.input.HangulKeys;
 import com.limelight.binding.input.KeyboardTranslator;
 import com.limelight.binding.input.capture.InputCaptureManager;
 import com.limelight.binding.input.capture.InputCaptureProvider;
@@ -103,6 +104,7 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.view.inputmethod.InputMethodManager;
+import android.view.inputmethod.InputMethodSubtype;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ImageButton;
@@ -112,7 +114,6 @@ import androidx.core.app.NotificationManagerCompat;
 import androidx.preference.PreferenceManager;
 
 import android.os.Looper;
-import android.os.SystemClock;
 import android.util.Log;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
@@ -463,7 +464,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         streamContainer.setOnGenericMotionListener(this);
         streamContainer.setOnKeyListener(this);
         streamContainer.setInputCallbacks(this);
-        streamContainer.setCommitTextEnabled(prefConfig.enableCommitText);
+        updateStreamImeBinding(getResources().getConfiguration());
+        if (prefConfig.languageSwitchHangul && !prefConfig.enableCommitText) {
+            // The IME is shown explicitly, see updateStreamImeBinding()
+            int softInputMode = getWindow().getAttributes().softInputMode;
+            getWindow().setSoftInputMode((softInputMode & ~WindowManager.LayoutParams.SOFT_INPUT_MASK_STATE) |
+                    WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+        }
 
         rootView = streamContainer.getParent();
 
@@ -791,7 +798,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 .setEnableUltraLowLatency(prefConfig.enableUltraLowLatency)
                 .setBitrate(isMetered ? prefConfig.meteredBitrate: prefConfig.bitrate)
                 .setEnableSops(prefConfig.enableSops)
-                .enableLocalAudioPlayback(prefConfig.playHostAudio || isHostAudioOnlyApp())
+                .enableLocalAudioPlayback(prefConfig.playHostAudio || isListedApp(prefConfig.hostAudioOnlyApps))
                 .setMaxPacketSize(1392)
                 .setRemoteConfiguration(StreamConfiguration.STREAM_CFG_AUTO) // NvConnection will perform LAN and VPN detection
                 .setSupportedVideoFormats(supportedVideoFormats)
@@ -814,6 +821,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         InputManager inputManager = (InputManager) getSystemService(Context.INPUT_SERVICE);
         inputManager.registerInputDeviceListener(keyboardTranslator, null);
         if (prefConfig.languageSwitchHangul) {
+            lastSubtype = ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE))
+                    .getCurrentInputMethodSubtype();
             inputManager.registerInputDeviceListener(languageSwitchListener, null);
         }
 
@@ -879,7 +888,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                 // Starten Sie die NvConnection
                 AndroidAudioRenderer audioRenderer = new AndroidAudioRenderer(Game.this, prefConfig.playHostAudio);
-                audioRenderer.setMuted(isHostAudioOnlyApp());
+                audioRenderer.setMuted(isListedApp(prefConfig.hostAudioOnlyApps));
                 conn.start(audioRenderer,
                         decoderRenderer, Game.this);
             }
@@ -1210,6 +1219,15 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if(keyBoardLayoutController != null){
             keyBoardLayoutController.refreshLayout();
         }
+
+        updateStreamImeBinding(newConfig);
+
+        // Switch between the chosen mouse mode and the trackpad as the keyboard is attached or removed
+        if (prefConfig.trackpadWithoutKeyboard && baseMouseMode >= 0 && !isOnExternalDisplay() &&
+                newConfig.hardKeyboardHidden != lastHardKeyboardHidden) {
+            applyMouseMode(mouseModeForKeyboard(newConfig));
+        }
+        lastHardKeyboardHidden = newConfig.hardKeyboardHidden;
 
         // Hide on-screen overlays in PiP mode
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -2029,8 +2047,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             modifier |= KeyboardPacket.MODIFIER_CTRL;
         }
         if (event.isAltPressed()) {
-            // When Right Alt is remapped to Meta, only treat Alt as held if Left Alt is specifically pressed
-            if (!prefConfig.rightAltAsMeta || (event.getMetaState() & KeyEvent.META_ALT_LEFT_ON) != 0) {
+            // When Right Alt is remapped to Meta or is the tablet's Hangul key, only treat Alt as held
+            // if Left Alt is specifically pressed. The tablet swallows the Hangul key but still reports
+            // it in the meta state, so a key typed before releasing it would reach the PC as Alt+key.
+            if (!(prefConfig.rightAltAsMeta || prefConfig.languageSwitchHangul) ||
+                    (event.getMetaState() & KeyEvent.META_ALT_LEFT_ON) != 0) {
                 modifier |= KeyboardPacket.MODIFIER_ALT;
             }
         }
@@ -2049,13 +2070,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         return handleKeyDown(event) || super.onKeyDown(keyCode, event);
     }
 
-    // Apps (e.g. an extended desktop used while sitting at the PC) whose audio should only play on the
-    // host: listed by name in the settings, comma separated, matched case-insensitively as substrings.
-    private boolean isHostAudioOnlyApp() {
-        if (appName == null || prefConfig.hostAudioOnlyApps == null) {
+    // Whether this app is in a per-app list setting (e.g. an extended desktop used while sitting at the PC):
+    // names comma separated, matched case-insensitively as substrings.
+    private boolean isListedApp(String list) {
+        if (appName == null || list == null) {
             return false;
         }
-        for (String name : prefConfig.hostAudioOnlyApps.split(",")) {
+        for (String name : list.split(",")) {
             name = name.trim();
             if (!name.isEmpty() && appName.toLowerCase().contains(name.toLowerCase())) {
                 return true;
@@ -2126,6 +2147,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // Pass through keyboard input if we're not grabbing
             if (!grabbedInput) {
                 return false;
+            }
+
+            if (prefConfig.languageSwitchHangul && event.getRepeatCount() == 0) {
+                checkLanguageSwitch();
             }
 
             // We'll send it as a raw key event if we have a key mapping, otherwise we'll send it
@@ -2301,6 +2326,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     public boolean handleFocusChange(boolean hasFocus) {
+        if (hasFocus && prefConfig.languageSwitchHangul && !prefConfig.enableCommitText &&
+                getResources().getConfiguration().hardKeyboardHidden == Configuration.HARDKEYBOARDHIDDEN_NO) {
+            // Regaining focus hides the IME, see updateStreamImeBinding()
+            streamContainer.post(() -> ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE))
+                    .showSoftInput(streamContainer, 0));
+        }
         if (connected && prefConfig.smartClipboardSync) {
             if (hasFocus) {
                 return sendClipboard(false);
@@ -2822,10 +2853,24 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     // Some tablets (Lenovo ZUI) consume the language switch key (e.g. right Alt) themselves and never
-    // pass it to apps, but switching the physical keyboard layout reports the keyboard as changed.
-    // Forward that as the Korean Hangul/English toggle so the host IME follows the tablet.
+    // pass it to apps, but it switches the IME subtype. Forward each switch as the Korean Hangul/English
+    // toggle so the host IME follows the tablet. Apps get no callback for subtype changes, so check the
+    // subtype before sending each key, which also covers the on-screen keyboard's language key, and when
+    // the keyboard reports a layout change, which lags the switch by 40-90ms.
     private static final short VK_HANGUL = (short) 0x8015;
-    private long lastLanguageSwitchTime = 0;
+    private InputMethodSubtype lastSubtype;
+
+    private void checkLanguageSwitch() {
+        InputMethodSubtype subtype = ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE))
+                .getCurrentInputMethodSubtype();
+        if (conn != null && !Objects.equals(subtype, lastSubtype)) {
+            conn.sendKeyboardInput(VK_HANGUL, KeyboardPacket.KEY_DOWN, (byte) 0, (byte) 0);
+            conn.sendKeyboardInput(VK_HANGUL, KeyboardPacket.KEY_UP, (byte) 0, (byte) 0);
+            Log.d(TOUCHPAD_TAG, "keyboard language switched -> Hangul key");
+        }
+        lastSubtype = subtype;
+    }
+
     private final InputManager.InputDeviceListener languageSwitchListener = new InputManager.InputDeviceListener() {
         @Override
         public void onInputDeviceAdded(int deviceId) {}
@@ -2836,21 +2881,32 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         @Override
         public void onInputDeviceChanged(int deviceId) {
             InputDevice device = InputDevice.getDevice(deviceId);
-            if (device == null || device.isVirtual() || conn == null ||
-                    device.getKeyboardType() != InputDevice.KEYBOARD_TYPE_ALPHABETIC) {
-                return;
+            if (device != null && !device.isVirtual() &&
+                    device.getKeyboardType() == InputDevice.KEYBOARD_TYPE_ALPHABETIC) {
+                checkLanguageSwitch();
             }
-            // One switch can report the change more than once
-            long now = SystemClock.uptimeMillis();
-            if (now - lastLanguageSwitchTime < 200) {
-                return;
-            }
-            lastLanguageSwitchTime = now;
-            conn.sendKeyboardInput(VK_HANGUL, KeyboardPacket.KEY_DOWN, (byte) 0, (byte) 0);
-            conn.sendKeyboardInput(VK_HANGUL, KeyboardPacket.KEY_UP, (byte) 0, (byte) 0);
-            Log.d(TOUCHPAD_TAG, "keyboard layout switched -> Hangul key");
         }
     };
+
+    // While forwarding language switches, make the stream a text editor. Then the on-screen keyboard
+    // shows its full layout (e.g. Korean) instead of a fixed QWERTY one, and what it composes is
+    // retyped on the host as keys. And while a hardware keyboard is attached, keep the IME shown
+    // (the on-screen keyboard stays hidden then): Gboard shows a toast over the stream on every
+    // keyboard language switch unless an editor holds the shown IME. Without a hardware keyboard,
+    // showing it would pop up the on-screen keyboard.
+    private void updateStreamImeBinding(Configuration config) {
+        boolean composeAsKeys = prefConfig.languageSwitchHangul && !prefConfig.enableCommitText;
+        streamContainer.setComposeAsKeys(composeAsKeys);
+        streamContainer.setCommitTextEnabled(prefConfig.enableCommitText || prefConfig.languageSwitchHangul);
+        if (composeAsKeys) {
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (config.hardKeyboardHidden == Configuration.HARDKEYBOARDHIDDEN_NO) {
+                imm.showSoftInput(streamContainer, 0);
+            } else {
+                imm.hideSoftInputFromWindow(streamContainer.getWindowToken(), 0);
+            }
+        }
+    }
 
     // Touchpads that are not captured (local cursor) only report a tap as a synthesized touchscreen
     // DOWN/UP pair after the finger is lifted, and never report the finger lifting after a move.
@@ -4423,8 +4479,25 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 applyMouseMode(naturalIndex);
             }
         } else {
-            applyMouseMode(savedMouseModeIndex);
+            baseMouseMode = savedMouseModeIndex;
+            lastHardKeyboardHidden = getResources().getConfiguration().hardKeyboardHidden;
+            applyMouseMode(mouseModeForKeyboard(getResources().getConfiguration()));
         }
+    }
+
+    // Mouse mode chosen by the user, used while a physical keyboard is attached
+    private int baseMouseMode = -1;
+    private int lastHardKeyboardHidden = Configuration.HARDKEYBOARDHIDDEN_UNDEFINED;
+
+    private int mouseModeForKeyboard(Configuration config) {
+        if (isListedApp(prefConfig.touchscreenApps)) {
+            return 0; // Multi-touch
+        }
+        if (prefConfig.trackpadWithoutKeyboard &&
+                config.hardKeyboardHidden != Configuration.HARDKEYBOARDHIDDEN_NO) {
+            return 2; // Trackpad (natural)
+        }
+        return baseMouseMode;
     }
 
     /**
@@ -4478,6 +4551,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         toggleMouseLocalCursor();
                     } else {
                         applyMouseMode(selected.index);
+                        if (getResources().getConfiguration().hardKeyboardHidden == Configuration.HARDKEYBOARDHIDDEN_NO) {
+                            baseMouseMode = selected.index;
+                        }
                         if (prefConfig.rememberMouseMode) {
                             ProfilesManager.getInstance().getOverlayingSharedPreferences(this)
                                     .edit()
@@ -4505,6 +4581,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     private void applyMouseMode(int mode) {
+        LimeLog.info("Applying mouse mode " + mode);
         switch (mode) {
             case 0: // Multi-touch
                 prefConfig.enableMultiTouchScreen = true;
@@ -4647,6 +4724,95 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
         enqueueCommitText(text.toString());
         return true;
+    }
+
+    // Whether the host IME still composes the last character sent by handleComposingText()
+    private boolean hostComposing;
+
+    // Retype the text the on-screen IME composes as 2-set keys, so the host IME composes it the same
+    // way, just like for a hardware keyboard. Both IMEs react the same to the same keys, except that
+    // backspace only takes a jamo off the syllable the host still composes, and a whole character
+    // otherwise.
+    @Override
+    public void handleComposingText(CharSequence previous, CharSequence text) {
+        if (conn == null) {
+            return;
+        }
+        checkLanguageSwitch();
+        String oldKeys = HangulKeys.keys(previous);
+        String newKeys = HangulKeys.keys(text);
+        int n = previous.length();
+        if (oldKeys != null && newKeys != null) {
+            if (newKeys.startsWith(oldKeys)) {
+                typeKeys(newKeys.substring(oldKeys.length()));
+                return;
+            }
+            // Backspace in the last character
+            if (n > 0 && (text.length() == n || text.length() == n - 1) &&
+                    previous.subSequence(0, n - 1).toString().contentEquals(text.subSequence(0, n - 1))) {
+                String lastOld = HangulKeys.keys(previous.charAt(n - 1));
+                String lastNew = text.length() == n ? HangulKeys.keys(text.charAt(n - 1)) : "";
+                if (lastOld.startsWith(lastNew)) {
+                    if (hostComposing) {
+                        sendBackspaces(lastOld.length() - lastNew.length());
+                        hostComposing = !lastNew.isEmpty();
+                    } else {
+                        sendBackspaces(1);
+                        typeKeys(lastNew);
+                    }
+                    return;
+                }
+            }
+        }
+        // Anything else: erase what was sent and send the text again
+        if (n > 0) {
+            String lastOld = HangulKeys.keys(previous.charAt(n - 1));
+            sendBackspaces(n - 1 + (hostComposing && lastOld != null ? lastOld.length() : 1));
+        }
+        if (newKeys != null) {
+            typeKeys(newKeys);
+        } else if (text.length() > 0) {
+            conn.sendUtf8Text(text.toString());
+            hostComposing = false;
+        }
+    }
+
+    private void sendBackspaces(int count) {
+        for (int i = 0; i < count; i++) {
+            sendKey(KeyEvent.KEYCODE_DEL, false);
+        }
+    }
+
+    private void typeKeys(String keys) {
+        for (int i = 0; i < keys.length(); i++) {
+            char c = keys.charAt(i);
+            if (c == ' ') {
+                sendKey(KeyEvent.KEYCODE_SPACE, false);
+            } else if (c == '\n') {
+                sendKey(KeyEvent.KEYCODE_ENTER, false);
+            } else if (c >= '0' && c <= '9') {
+                sendKey(KeyEvent.KEYCODE_0 + c - '0', false);
+            } else {
+                sendKey(KeyEvent.KEYCODE_A + Character.toLowerCase(c) - 'a', Character.isUpperCase(c));
+            }
+        }
+        if (!keys.isEmpty()) {
+            hostComposing = Character.isLetter(keys.charAt(keys.length() - 1));
+        }
+    }
+
+    private void sendKey(int keyCode, boolean shift) {
+        short shiftCode = keyboardTranslator.translate(KeyEvent.KEYCODE_SHIFT_LEFT, 0, -1);
+        short code = keyboardTranslator.translate(keyCode, 0, -1);
+        byte modifier = shift ? KeyboardPacket.MODIFIER_SHIFT : 0;
+        if (shift) {
+            conn.sendKeyboardInput(shiftCode, KeyboardPacket.KEY_DOWN, modifier, (byte) 0);
+        }
+        conn.sendKeyboardInput(code, KeyboardPacket.KEY_DOWN, modifier, (byte) 0);
+        conn.sendKeyboardInput(code, KeyboardPacket.KEY_UP, modifier, (byte) 0);
+        if (shift) {
+            conn.sendKeyboardInput(shiftCode, KeyboardPacket.KEY_UP, (byte) 0, (byte) 0);
+        }
     }
 
     @Override

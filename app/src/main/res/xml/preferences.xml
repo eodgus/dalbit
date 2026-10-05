@@ -467,6 +467,20 @@
             android:title="@string/title_language_switch_hangul"
             app:iconSpaceReserved="false" />
         <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_trackpad_without_keyboard"
+            android:summary="@string/summary_trackpad_without_keyboard"
+            android:title="@string/title_trackpad_without_keyboard"
+            app:iconSpaceReserved="false" />
+        <EditTextPreference
+            android:defaultValue=""
+            android:dialogTitle="@string/title_touchscreen_apps"
+            android:key="edit_touchscreen_apps"
+            android:singleLine="true"
+            android:summary="@string/summary_touchscreen_apps"
+            android:title="@string/title_touchscreen_apps"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
             android:defaultValue="true"
             android:key="checkbox_touchpad_tap_to_click"
             android:summary="@string/summary_touchpad_tap_to_click"

@@ -11,6 +11,7 @@ import android.view.SurfaceView;
 import android.view.inputmethod.BaseInputConnection;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.FrameLayout;
 
 import com.limelight.Game;
@@ -31,6 +32,7 @@ public class StreamContainer extends FrameLayout implements SurfaceHolder.Callba
         boolean handleCommitText(CharSequence text);
         boolean handleDeleteSurroundingText(int beforeLength, int afterLength);
         boolean handleFocusChange(boolean hasWindowFocus);
+        void handleComposingText(CharSequence previous, CharSequence text);
     }
 
     public enum StreamMode {
@@ -49,6 +51,7 @@ public class StreamContainer extends FrameLayout implements SurfaceHolder.Callba
     private StreamMode renderMode = null;
     private InputCallbacks mInputCallbacks;
     private boolean commitTextEnabled = false;
+    private boolean composeAsKeys = false;
 
     private double desiredAspectRatio;
     private boolean fillDisplay = false;
@@ -154,7 +157,18 @@ public class StreamContainer extends FrameLayout implements SurfaceHolder.Callba
     }
 
     public void setCommitTextEnabled(boolean enabled) {
+        if (enabled == commitTextEnabled) {
+            return;
+        }
         this.commitTextEnabled = enabled;
+        // Rebind the IME so it sees the view become, or stop being, a text editor
+        InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.restartInput(this);
+    }
+
+    // Pass what the IME composes to handleComposingText() instead of committed text to handleCommitText()
+    public void setComposeAsKeys(boolean composeAsKeys) {
+        this.composeAsKeys = composeAsKeys;
     }
 
     @Override
@@ -189,6 +203,53 @@ public class StreamContainer extends FrameLayout implements SurfaceHolder.Callba
         }
         outAttrs.inputType = android.text.InputType.TYPE_CLASS_TEXT;
         outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI;
+        if (composeAsKeys) {
+            outAttrs.inputType |= android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS;
+            return new BaseInputConnection(this, false) {
+                private CharSequence composing = "";
+
+                private void compose(CharSequence text, boolean done) {
+                    if (mInputCallbacks != null) {
+                        mInputCallbacks.handleComposingText(composing, text);
+                    }
+                    composing = done ? "" : text;
+                }
+
+                @Override
+                public boolean setComposingText(CharSequence text, int newCursorPosition) {
+                    compose(text, false);
+                    return true;
+                }
+
+                @Override
+                public boolean commitText(CharSequence text, int newCursorPosition) {
+                    compose(text, true);
+                    return true;
+                }
+
+                @Override
+                public boolean finishComposingText() {
+                    composing = "";
+                    return true;
+                }
+
+                @Override
+                public boolean deleteSurroundingText(int beforeLength, int afterLength) {
+                    for (int i = 0; i < beforeLength; i++) {
+                        sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL));
+                        sendKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL));
+                    }
+                    return true;
+                }
+
+                @Override
+                public boolean performEditorAction(int editorAction) {
+                    sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER));
+                    sendKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER));
+                    return true;
+                }
+            };
+        }
         return new BaseInputConnection(this, false) {
             @Override
             public boolean commitText(CharSequence text, int newCursorPosition) {
