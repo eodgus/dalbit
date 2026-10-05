@@ -19,14 +19,14 @@ adb shell input keyevent KEYCODE_WAKEUP
 rem Only skips a swipe lock screen; a PIN/pattern still has to be entered on the device.
 adb shell wm dismiss-keyguard
 
-adb shell ip -4 addr show rndis0 2>nul | find "inet " >nul && goto :tethered
+adb shell ip -4 addr show rndis0 2>nul | findstr /c:"inet " >nul && goto :tethered
 echo PC 쪽 USB 연결을 기다리는 중...
 echo USB 테더링 켜는 중...
 rem USB re-enumerates here, so adb drops for a moment.
 adb shell svc usb setFunctions rndis
 adb wait-for-device
 for /l %%i in (1,1,20) do (
-  adb shell ip -4 addr show rndis0 2>nul | find "inet " >nul && goto :tethered
+  adb shell ip -4 addr show rndis0 2>nul | findstr /c:"inet " >nul && goto :tethered
 echo PC 쪽 USB 연결을 기다리는 중...
   timeout /t 1 /nobreak >nul
 )
