@@ -1,3 +1,5 @@
+<p align="center"><img src="store-assets/dalbit-icon.png" width="128" alt="Dalbit icon"></p>
+
 # Dalbit
 
 Dalbit (달빛, Korean for "moonlight") is a personal fork of [Artemis Android](https://github.com/ClassicOldSong/moonlight-android),
