@@ -10,11 +10,23 @@ set SUNSHINE_STATE=%ProgramFiles%\Sunshine\config\sunshine_state.json
 for /f "usebackq delims=" %%u in (`powershell -NoProfile -Command "(Get-Content -Raw '%SUNSHINE_STATE%' | ConvertFrom-Json).root.uniqueid"`) do set HOST_UUID=%%u
 if not defined HOST_UUID (echo Sunshine 호스트 ID를 읽지 못했습니다: %SUNSHINE_STATE% & pause & exit /b 1)
 
-adb get-state >nul 2>&1 || goto :local
+rem Same device choice as dalbit-on.cmd: USB first, then a wireless debugging device.
+set ADB=adb -d
+%ADB% get-state >nul 2>&1 && goto :found
+set ADB=adb -e
+for /l %%i in (1,1,5) do (
+  %ADB% get-state >nul 2>&1 && goto :found
+  for /f "tokens=3" %%a in ('adb mdns services 2^>nul ^| findstr /c:"_adb-tls-connect._tcp"') do adb connect %%a >nul
+  timeout /t 1 /nobreak >nul
+)
+echo 기기를 찾지 못했습니다. USB 케이블로 연결하거나, 기기의 개발자 옵션에서 무선 디버깅을 켜 주세요.
+goto :local
+
+:found
 echo 확장모드를 종료하는 중...
-adb shell input keyevent KEYCODE_WAKEUP
-adb shell am force-stop %PKG%
-adb shell am start -n %PKG%/com.limelight.ShortcutTrampoline --es UUID %HOST_UUID% --ez Quit true >nul
+%ADB% shell input keyevent KEYCODE_WAKEUP
+%ADB% shell am force-stop %PKG%
+%ADB% shell am start -n %PKG%/com.limelight.ShortcutTrampoline --es UUID %HOST_UUID% --ez Quit true >nul
 
 :local
 if exist "%~dp0dalbit-off.local.cmd" call "%~dp0dalbit-off.local.cmd"

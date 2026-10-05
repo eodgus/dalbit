@@ -44,6 +44,13 @@ PATH and USB debugging on the device. Set `APP` at the top of `dalbit-on.cmd` to
 read from Sunshine's `sunshine_state.json`. Anything else your PC needs after turning the monitor off can go in a
 `dalbit-off.local.cmd` next to the scripts.
 
+Without a cable, the scripts use Android 11+ wireless debugging instead and only start or end the session; Dalbit then
+connects over Wi-Fi. If the device is connected both ways, USB is used. The PC has to be on the same local network as
+the device. Pair the PC once: on the device, open
+**Developer options > Wireless debugging > Pair device with pairing code**, then run `adb pair <ip>:<port>` on the PC with
+the address and code shown. Wireless debugging turns off when the device changes Wi-Fi networks and may need to be turned
+back on after a reboot, but pairing does not need to be repeated.
+
 A USB data port on a PC usually gives the tablet only about 2.5 W (5 V, 0.45-0.5 A), even a motherboard USB-C port. On the
 test tablet that was not enough at 120 FPS and the battery slowly drained. At 60 FPS with a video playing it dropped about
 4% an hour. To charge while streaming, connect the tablet through a powered USB hub whose ports support charging and data
