@@ -1,3 +1,24 @@
+# Dalbit
+
+Dalbit (달빛, Korean for "moonlight") is a personal fork of [Artemis Android](https://github.com/ClassicOldSong/moonlight-android),
+tuned for using an Android tablet as a second monitor for a Windows PC running [Sunshine](https://github.com/LizardByte/Sunshine),
+plus playing remotely when away from the PC.
+
+Changes from Artemis:
+
+* **USB first**: when the tablet shares a USB tethering link with the PC, Dalbit finds the host on that link and streams over the
+  cable, falling back to Wi-Fi or the internet when it is not there.
+* **Keyboard cover input**: touchpad tap, drag and two-finger gestures in local cursor mode; the host Korean/English input mode
+  follows the tablet keyboard language.
+* **Per-app settings**: "Host-only audio apps" keep audio on the PC, and "Touchscreen apps" always use the screen as a touchscreen,
+  e.g. for an extended desktop app.
+* **Scriptable**: launcher shortcuts accept a `Quit` extra to end the running host app without a dialog.
+* **Not declared as a game**, so vendor game modes do not cap the refresh rate at 60 Hz.
+
+Dalbit stays under the same GPLv3 license as Artemis and Moonlight. Everything below is the original Artemis README.
+
+---
+
 # Artemis Android
 
 Previously named Moonlight Noir
