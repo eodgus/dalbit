@@ -341,7 +341,7 @@
     <string name="summary_special_key_help">Инструкция по настройке пользовательских спец-клавиш</string>
     <string name="summary_performance_link">Просмотреть производительность других устройств.\nОбратите внимание, эти данные поддерживаются сообществом, они не поддерживаются Artemis и не представляют Artemis официально.</string>
     <string name="pacing_warp">Warp Drive (экспериментально)</string>
-    <string name="keyboard_service_label">Физическая клавиатура Artemis</string>
+    <string name="keyboard_service_label">Физическая клавиатура Dalbit</string>
     <string name="accessibility_description_text">Используется, если системные сочетания физической клавиатуры перехватываются Android. В таких случаях некоторые сочетания не проходят на хост-ПК. Artemis не просматривает ваш ввод и не собирает пароли, номера карт или другую личную информацию.</string>
     <string name="game_menu_toggle_keyboard">Показать экранную клавиатуру</string>
     <string name="game_menu_toggle_hud">Вкл./выкл. панель производительности</string>
@@ -413,9 +413,8 @@
     <string name="summary_share_performance_logs">Поделиться данными о производительности с друзьями/сообществом</string>
     <string name="title_share_performance_logs_button">Поделиться логами производительности</string>
     <string name="title_software_update">Обновление ПО</string>
-    <string name="summary_software_update">Artemis Nior от ClassicOldSong — смотрите релизы на GitHub для последней версии</string>
     <string name="title_follow_update">Следить за обновлениями</string>
-    <string name="summary_follow_update">Следите за обновлениями Artemis через Obtainium</string>
+    <string name="summary_follow_update">Следите за обновлениями Dalbit через Obtainium</string>
     <string name="title_special_key_layout">Раскладка спец-клавиш</string>
     <string name="title_show_virtual_key">Показать виртуальные клавиши на экране</string>
     <string name="summary_show_virtual_key">Отобразить слой виртуальных спец-клавиш на тачскрине.\nНепрозрачность клавиш общая с виртуальным геймпадом.</string>

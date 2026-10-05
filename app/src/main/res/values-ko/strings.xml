@@ -317,4 +317,9 @@
     <string name="summary_touchpad_tap_drag_window">탭한 뒤 이 시간 안에 다시 터치하면 드래그가 시작됩니다. 길수록 드래그하기 쉽지만 한 번 클릭이 늦게 들어갑니다.</string>
     <string name="title_touchscreen_apps">터치스크린 앱</string>
     <string name="summary_touchscreen_apps">쉼표로 구분한 앱 이름(부분 일치). 이 앱들은 키보드 연결과 상관없이 화면을 터치스크린(멀티터치)으로 사용합니다. 예: 확장 데스크톱</string>
+    <string name="keyboard_service_label">Dalbit 물리 키보드</string>
+    <string name="title_software_update">소프트웨어 업데이트</string>
+    <string name="summary_software_update">Eodgus의 Dalbit - GitHub Releases에서 최신 버전을 받으세요</string>
+    <string name="title_follow_update">업데이트 구독</string>
+    <string name="summary_follow_update">Obtainium으로 Dalbit 업데이트 구독</string>
 </resources>

@@ -362,7 +362,7 @@
 	<string name="pacing_smoothness">優先最流暢影片（可能大幅增加延遲）</string>
 
 
-	<string name="keyboard_service_label">Artemis 實體鍵盤</string>
+	<string name="keyboard_service_label">Dalbit 實體鍵盤</string>
 	<string name="accessibility_description_text">僅在系統攔截實體鍵盤快捷鍵時使用。在某些系統中，部分快捷鍵已被 Android 系統定義並使用，導致無法傳遞至主機電腦。Artemis 不會檢視您的輸入，也不會收集您的密碼、信用卡號或任何其他私人資訊。</string>
 
 
@@ -491,10 +491,9 @@
 	<string name="title_share_performance_logs_button">分享效能日誌</string>
 
 	<string name="title_software_update">軟體更新</string>
-	<string name="summary_software_update">Artemis Nior 版本（ClassicOldSong）－前往 GitHub Releases 取得最新版本</string>
 
 	<string name="title_follow_update">追蹤更新</string>
-	<string name="summary_follow_update">使用 Obtainium 追蹤 Artemis 更新</string>
+	<string name="summary_follow_update">使用 Obtainium 追蹤 Dalbit 更新</string>
 
 	<string name="title_special_key_layout">特殊按鍵佈局</string>
 	<string name="title_show_virtual_key">在螢幕上顯示虛擬按鍵</string>
