@@ -36,6 +36,7 @@ import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.nvstream.http.PairingManager;
 import com.limelight.nvstream.mdns.MdnsComputer;
 import com.limelight.nvstream.mdns.MdnsDiscoveryListener;
+import com.limelight.profiles.ProfilesManager;
 import com.limelight.utils.CacheHelper;
 import com.limelight.utils.NetHelper;
 import com.limelight.utils.ServerHelper;
@@ -66,6 +67,7 @@ public class ComputerManagerService extends Service {
     private static final int POLL_DATA_TTL_MS = 30000;
     private static final int USB_SCAN_PERIOD_MS = 10000;
     private static final int USB_PROBE_TIMEOUT_MS = 300;
+    private static final String PREFER_USB_TETHER_PREF = "checkbox_prefer_usb_tether";
 
     private final ComputerManagerBinder binder = new ComputerManagerBinder();
 
@@ -644,6 +646,9 @@ public class ComputerManagerService extends Service {
     // Returns null when there's no tethered link or when the local address is already on it.
     // ponytail: assumes the /24 Android gives tethering and scans it; read the DHCP leases if that changes
     private ComputerDetails.AddressTuple findUsbHost(ComputerDetails details) throws InterruptedException {
+        if (!ProfilesManager.getInstance().getOverlayingSharedPreferences(this).getBoolean(PREFER_USB_TETHER_PREF, true)) {
+            return null;
+        }
         String self = null;
         try {
             for (NetworkInterface nif : Collections.list(NetworkInterface.getNetworkInterfaces())) {

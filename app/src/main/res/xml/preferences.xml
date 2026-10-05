@@ -456,69 +456,6 @@
             app:iconSpaceReserved="false" />
         <CheckBoxPreference
             android:defaultValue="false"
-            android:key="checkbox_esc_hold_menu"
-            android:summary="@string/summary_esc_hold_menu"
-            android:title="@string/title_esc_hold_menu"
-            app:iconSpaceReserved="false" />
-        <CheckBoxPreference
-            android:defaultValue="false"
-            android:key="checkbox_language_switch_hangul"
-            android:summary="@string/summary_language_switch_hangul"
-            android:title="@string/title_language_switch_hangul"
-            app:iconSpaceReserved="false" />
-        <CheckBoxPreference
-            android:defaultValue="false"
-            android:key="checkbox_trackpad_without_keyboard"
-            android:summary="@string/summary_trackpad_without_keyboard"
-            android:title="@string/title_trackpad_without_keyboard"
-            app:iconSpaceReserved="false" />
-        <EditTextPreference
-            android:defaultValue=""
-            android:dialogTitle="@string/title_touchscreen_apps"
-            android:key="edit_touchscreen_apps"
-            android:singleLine="true"
-            android:summary="@string/summary_touchscreen_apps"
-            android:title="@string/title_touchscreen_apps"
-            app:iconSpaceReserved="false" />
-        <CheckBoxPreference
-            android:defaultValue="true"
-            android:key="checkbox_touchpad_tap_to_click"
-            android:summary="@string/summary_touchpad_tap_to_click"
-            android:title="@string/title_touchpad_tap_to_click"
-            app:iconSpaceReserved="false" />
-        <ListPreference
-            android:defaultValue="right"
-            android:entries="@array/touchpad_two_finger_tap_names"
-            android:entryValues="@array/touchpad_two_finger_tap_values"
-            android:key="list_touchpad_two_finger_tap"
-            android:summary="%s"
-            android:title="@string/title_touchpad_two_finger_tap"
-            app:iconSpaceReserved="false" />
-        <CheckBoxPreference
-            android:defaultValue="false"
-            android:key="checkbox_touchpad_swipe_navigation"
-            android:summary="@string/summary_touchpad_swipe_navigation"
-            android:title="@string/title_touchpad_swipe_navigation"
-            app:iconSpaceReserved="false" />
-        <CheckBoxPreference
-            android:defaultValue="true"
-            android:key="checkbox_touchpad_tap_drag"
-            android:summary="@string/summary_touchpad_tap_drag"
-            android:title="@string/title_touchpad_tap_drag"
-            app:iconSpaceReserved="false" />
-        <com.limelight.preferences.SeekBarPreference
-            android:defaultValue="200"
-            android:key="seekbar_touchpad_tap_drag_window"
-            android:dependency="checkbox_touchpad_tap_drag"
-            seekbar:step="10"
-            seekbar:min="50"
-            android:max="400"
-            android:text="ms"
-            android:summary="@string/summary_touchpad_tap_drag_window"
-            android:title="@string/title_touchpad_tap_drag_window"
-            app:iconSpaceReserved="false" />
-        <CheckBoxPreference
-            android:defaultValue="false"
             android:key="checkbox_trackpad_swap_axis"
             android:summary="@string/summary_trackpad_swap_axis"
             android:title="@string/title_trackpad_swap_axis"
@@ -562,8 +499,98 @@
     </PreferenceCategory>
 
     <PreferenceCategory
+        android:key="category_keyboard_cover"
+        android:title="@string/category_keyboard_cover"
+        app:iconSpaceReserved="false">
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_esc_hold_menu"
+            android:summary="@string/summary_esc_hold_menu"
+            android:title="@string/title_esc_hold_menu"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_language_switch_hangul"
+            android:summary="@string/summary_language_switch_hangul"
+            android:title="@string/title_language_switch_hangul"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_trackpad_without_keyboard"
+            android:summary="@string/summary_trackpad_without_keyboard"
+            android:title="@string/title_trackpad_without_keyboard"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="checkbox_touchpad_tap_to_click"
+            android:summary="@string/summary_touchpad_tap_to_click"
+            android:title="@string/title_touchpad_tap_to_click"
+            app:iconSpaceReserved="false" />
+        <ListPreference
+            android:defaultValue="right"
+            android:entries="@array/touchpad_two_finger_tap_names"
+            android:entryValues="@array/touchpad_two_finger_tap_values"
+            android:key="list_touchpad_two_finger_tap"
+            android:summary="%s"
+            android:title="@string/title_touchpad_two_finger_tap"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="checkbox_touchpad_swipe_navigation"
+            android:summary="@string/summary_touchpad_swipe_navigation"
+            android:title="@string/title_touchpad_swipe_navigation"
+            app:iconSpaceReserved="false" />
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="checkbox_touchpad_tap_drag"
+            android:summary="@string/summary_touchpad_tap_drag"
+            android:title="@string/title_touchpad_tap_drag"
+            app:iconSpaceReserved="false" />
+        <com.limelight.preferences.SeekBarPreference
+            android:defaultValue="200"
+            android:key="seekbar_touchpad_tap_drag_window"
+            android:dependency="checkbox_touchpad_tap_drag"
+            seekbar:step="10"
+            seekbar:min="50"
+            android:max="400"
+            android:text="ms"
+            android:summary="@string/summary_touchpad_tap_drag_window"
+            android:title="@string/title_touchpad_tap_drag_window"
+            app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="category_per_app"
+        android:title="@string/category_per_app"
+        app:iconSpaceReserved="false">
+        <EditTextPreference
+            android:defaultValue=""
+            android:dialogTitle="@string/title_touchscreen_apps"
+            android:key="edit_touchscreen_apps"
+            android:singleLine="true"
+            android:summary="@string/summary_touchscreen_apps"
+            android:title="@string/title_touchscreen_apps"
+            app:iconSpaceReserved="false" />
+        <EditTextPreference
+            android:defaultValue=""
+            android:dialogTitle="@string/title_host_audio_only_apps"
+            android:key="edit_host_audio_only_apps"
+            android:singleLine="true"
+            android:summary="@string/summary_host_audio_only_apps"
+            android:title="@string/title_host_audio_only_apps"
+            app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+
+
+    <PreferenceCategory
         android:title="@string/category_host_settings"
         app:iconSpaceReserved="false">
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="checkbox_prefer_usb_tether"
+            android:summary="@string/summary_prefer_usb_tether"
+            android:title="@string/title_prefer_usb_tether"
+            app:iconSpaceReserved="false" />
         <CheckBoxPreference
             android:defaultValue="true"
             android:key="checkbox_enable_sops"
@@ -575,14 +602,6 @@
             android:key="checkbox_host_audio"
             android:summary="@string/summary_checkbox_host_audio"
             android:title="@string/title_checkbox_host_audio"
-            app:iconSpaceReserved="false" />
-        <EditTextPreference
-            android:defaultValue=""
-            android:dialogTitle="@string/title_host_audio_only_apps"
-            android:key="edit_host_audio_only_apps"
-            android:singleLine="true"
-            android:summary="@string/summary_host_audio_only_apps"
-            android:title="@string/title_host_audio_only_apps"
             app:iconSpaceReserved="false" />
     </PreferenceCategory>
 

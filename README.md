@@ -7,7 +7,7 @@ plus playing remotely when away from the PC.
 Changes from Artemis:
 
 * **USB first**: when the tablet shares a USB tethering link with the PC, Dalbit finds the host on that link and streams over the
-  cable, falling back to Wi-Fi or the internet when it is not there.
+  cable, falling back to Wi-Fi or the internet when it is not there (Host Settings > Prefer the USB tethering link).
 * **Keyboard cover input**: touchpad tap, drag and two-finger gestures in local cursor mode; the host Korean/English input mode
   follows the tablet keyboard language.
 * **Per-app settings**: "Host-only audio apps" keep audio on the PC, and "Touchscreen apps" always use the screen as a touchscreen,
