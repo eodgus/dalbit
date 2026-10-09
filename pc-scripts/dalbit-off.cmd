@@ -13,9 +13,10 @@ if not defined HOST_UUID (echo Sunshine 호스트 ID를 읽지 못했습니다: 
 rem Same device choice as dalbit-on.cmd: USB first, then a wireless debugging device.
 set ADB=adb -d
 %ADB% get-state >nul 2>&1 && goto :found
-set ADB=adb -e
 for /l %%i in (1,1,5) do (
-  %ADB% get-state >nul 2>&1 && goto :found
+  for /f "tokens=1,2" %%s in ('adb devices') do if "%%t"=="device" (
+    echo %%s| findstr /c:":" /c:"_adb-tls" >nul && (set "ADB=adb -s %%s" & goto :found)
+  )
   for /f "tokens=3" %%a in ('adb mdns services 2^>nul ^| findstr /c:"_adb-tls-connect._tcp"') do adb connect %%a >nul
   timeout /t 1 /nobreak >nul
 )

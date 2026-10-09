@@ -17,12 +17,14 @@ if not defined HOST_UUID (echo Sunshine 호스트 ID를 읽지 못했습니다: 
 rem Prefer USB, even when the device is also connected over Wi-Fi.
 set ADB=adb -d
 %ADB% get-state >nul 2>&1 && goto :found
-rem Otherwise use a paired device with wireless debugging on. adb connects to it by itself once mDNS finds it,
-rem which can take a moment after the adb server starts, so also connect to the address mDNS advertises.
-rem -e fails when more than one TCP device or emulator is connected; use -s <serial> if that happens.
-set ADB=adb -e
+rem Otherwise use a device on Wi-Fi: a paired one with wireless debugging on, or one already connected with
+rem adb connect. adb connects to a paired device by itself once mDNS finds it, which can take a moment after the
+rem adb server starts, so also connect to the address mDNS advertises. The serial is picked explicitly because
+rem adb -e fails when the same device shows up both ways.
 for /l %%i in (1,1,5) do (
-  %ADB% get-state >nul 2>&1 && goto :found
+  for /f "tokens=1,2" %%s in ('adb devices') do if "%%t"=="device" (
+    echo %%s| findstr /c:":" /c:"_adb-tls" >nul && (set "ADB=adb -s %%s" & goto :found)
+  )
   for /f "tokens=3" %%a in ('adb mdns services 2^>nul ^| findstr /c:"_adb-tls-connect._tcp"') do adb connect %%a >nul
   timeout /t 1 /nobreak >nul
 )
@@ -34,7 +36,7 @@ pause & exit /b 1
 rem Only skips a swipe lock screen; a PIN/pattern still has to be entered on the device.
 %ADB% shell wm dismiss-keyguard
 rem Over Wi-Fi there is no tethering to set up; Dalbit connects over Wi-Fi by itself.
-if "%ADB%"=="adb -e" goto :launch
+if not "%ADB%"=="adb -d" goto :launch
 
 %ADB% shell ip -4 addr show rndis0 2>nul | findstr /c:"inet " >nul && goto :tethered
 echo PC 쪽 USB 연결을 기다리는 중...
