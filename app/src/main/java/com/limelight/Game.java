@@ -90,6 +90,7 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.util.Rational;
 import android.view.Display;
+import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.InputDevice;
 import android.view.KeyCharacterMap;
@@ -232,6 +233,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     // The stream was stopped because something covered it (Home, a Google Play services prompt,
     // screen off) rather than ended here, so the session is picked back up when this shows again.
     private boolean resumeOnStart;
+    // The current touch gesture started on the letterbox outside the video, see onTouch()
+    private boolean letterboxTouch;
+    // Double tap or long press on the letterbox opens the game menu
+    private GestureDetector letterboxGestures;
     // Moves a USB stream to Wi-Fi as soon as the cable or tethering goes, without waiting for the
     // stream to time out. Moves a Wi-Fi stream to USB once tethering comes up with the host on it.
     // ponytail: whatever answers on the tethering link is taken to be this host, a tablet tethers one PC
@@ -542,6 +547,18 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // allows proper touch splitting, which the OSC relies upon.
         View backgroundTouchView = findViewById(R.id.backgroundTouchView);
         backgroundTouchView.setOnTouchListener(this);
+        letterboxGestures = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onDoubleTap(MotionEvent e) {
+                showGameMenu(null);
+                return true;
+            }
+
+            @Override
+            public void onLongPress(MotionEvent e) {
+                showGameMenu(null);
+            }
+        });
 
 
         panZoomHandler = new PanZoomHandler(
@@ -3913,6 +3930,28 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             //
             // NB: This is still needed even when we call the newer requestUnbufferedDispatch()!
             view.requestUnbufferedDispatch(event);
+        }
+
+        // A finger that lands on the letterbox around the video brings up the system bars, so the next edge swipe
+        // reaches Android (back, home) instead of the host as a touch clamped to the video's edge. A double tap or
+        // long press there opens the game menu. Touches on the
+        // video arrive here too, since the stream container doesn't take touches itself. Trackpad modes keep using
+        // the letterbox as touchpad area.
+        if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+            Rect video = new Rect();
+            streamContainer.getHitRect(video);
+            letterboxTouch = !prefConfig.touchscreenTrackpad &&
+                    event.getToolType(0) == MotionEvent.TOOL_TYPE_FINGER &&
+                    !video.contains((int) event.getX(), (int) event.getY());
+            if (letterboxTouch && prefConfig.fullScreen) {
+                // onSystemUiVisibilityChange() hides them again shortly after
+                getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                        View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+            }
+        }
+        if (letterboxTouch) {
+            letterboxGestures.onTouchEvent(event);
+            return true;
         }
 
         return handleMotionEvent(view, event);
