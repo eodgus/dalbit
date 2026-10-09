@@ -44,6 +44,15 @@ PATH and USB debugging on the device. Set `APP` at the top of `dalbit-on.cmd` to
 read from Sunshine's `sunshine_state.json`. Anything else your PC needs after turning the monitor off can go in a
 `dalbit-off.local.cmd` next to the scripts.
 
+Windows moves the mouse cursor to every touch, so touching the tablet would pull the cursor off your main monitor.
+`dalbit-on.cmd` also starts `dalbit-cursor.ps1` in the background, which lets the touch land where it should and then
+continues the cursor from where the mouse last had it the next time the mouse moves. `dalbit-off.cmd` stops it.
+To have it also when the session is started from the tablet, add a command preparation to the Sunshine app instead
+(not elevated), with your path to the script:
+
+- Do: `cmd /c start "" powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\path\to\dalbit-cursor.ps1"`
+- Undo: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\path\to\dalbit-cursor.ps1" -Stop`
+
 Without a cable, the scripts use Android 11+ wireless debugging instead and only start or end the session; Dalbit then
 connects over Wi-Fi. If the device is connected both ways, USB is used. The PC has to be on the same local network as
 the device. Pair the PC once: on the device, open

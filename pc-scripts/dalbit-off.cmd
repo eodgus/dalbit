@@ -30,6 +30,8 @@ echo 확장모드를 종료하는 중...
 %ADB% shell am start -n %PKG%/com.limelight.ShortcutTrampoline --es UUID %HOST_UUID% --ez Quit true >nul
 
 :local
+rem Stop the cursor keeper dalbit-on.cmd started.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0dalbit-cursor.ps1" -Stop
 if exist "%~dp0dalbit-off.local.cmd" call "%~dp0dalbit-off.local.cmd"
 echo 확장모드를 종료했습니다.
 echo 잠시 후 창이 닫힙니다.

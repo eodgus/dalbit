@@ -59,6 +59,8 @@ rem Wait for Windows to get an address on the tethering adapter, or Dalbit falls
 powershell -NoProfile -Command "$t=0; while ($t -lt 20 -and -not (Get-NetAdapter -InterfaceDescription '*Remote NDIS*' -ErrorAction SilentlyContinue | Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | ? IPAddress -notlike '169.254*')) { sleep 1; $t++ }"
 
 :launch
+rem Keeps the mouse cursor on the main monitor when the tablet is touched; dalbit-off.cmd stops it.
+start "" powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0dalbit-cursor.ps1"
 %ADB% shell am start -n %PKG%/com.limelight.ShortcutTrampoline --es UUID %HOST_UUID% --es AppName "'%APP%'" >nul
 echo 확장모드 연결을 시작했습니다.
 echo 잠시 후 창이 닫힙니다.
