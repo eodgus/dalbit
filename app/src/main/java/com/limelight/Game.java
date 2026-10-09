@@ -229,6 +229,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     // The stream went over the USB tethering link, so losing that link should reconnect over Wi-Fi
     private boolean usbTetherStream;
     private volatile boolean usbSwitchPending;
+    // The stream was stopped because something covered it (Home, a Google Play services prompt,
+    // screen off) rather than ended here, so the session is picked back up when this shows again.
+    private boolean resumeOnStart;
     // Moves a USB stream to Wi-Fi as soon as the cable or tethering goes, without waiting for the
     // stream to time out. Moves a Wi-Fi stream to USB once tethering comes up with the host on it.
     // ponytail: whatever answers on the tethering link is taken to be this host, a tablet tethers one PC
@@ -1873,6 +1876,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if (conn != null) {
             int videoFormat = decoderRenderer.getActiveVideoFormat();
 
+            resumeOnStart = !isFinishing() && !displayedFailureDialog &&
+                    (Build.VERSION.SDK_INT < Build.VERSION_CODES.N || !isInPictureInPictureMode());
             displayedFailureDialog = true;
             stopConnection();
             String message = null;
@@ -1945,9 +1950,23 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 );
             }
 
+            if (resumeOnStart) {
+                // Stay in the back stack so onStart() can reconnect when this shows again
+                return;
+            }
         }
 
         finish();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (resumeOnStart) {
+            resumeOnStart = false;
+            LimeLog.info("Stream was stopped in the background, reconnecting");
+            reconnect();
+        }
     }
 
     public static String formatCurrentTime(long currentTimeMillis) {
