@@ -22,8 +22,9 @@ Dalbit finds the PC on the cable by itself; you do not have to type an IP addres
 * **Made for an extended desktop**: per-app settings let a second-monitor app behave like a monitor while other apps behave
   like a game stream. "Touchscreen apps" always use the screen as a touchscreen, and "Host-only audio apps" keep the sound on
   the PC.
-* **Scriptable**: launcher shortcuts accept a `Quit` extra to end the running host app without a dialog, so a script on the PC
-  can turn the tablet monitor on and off without touching the tablet.
+* **Scriptable**: a `Quit` extra sent to `com.limelight.QuitTrampoline` ends the running host app without a dialog, so a script
+  on the PC can turn the tablet monitor on and off without touching the tablet. Only adb can start that entry point, so other
+  apps on the tablet cannot end the session.
 * **No 60 Hz cap from vendor game modes**: Dalbit is not declared as a game, so modes like Lenovo ZUI's do not lock it to 60 Hz.
 * **Keyboard cover touchpads**: tap, drag and two-finger gestures in local cursor mode (fixes taps registering as right
   clicks on Lenovo ZUI tablets).

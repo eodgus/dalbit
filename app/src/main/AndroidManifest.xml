@@ -127,6 +127,13 @@
                 <data android:pathPattern=".*\.art" />
             </intent-filter>
         </activity>
+        <!-- The only way in for ShortcutTrampoline's Quit extra. adb's shell holds DUMP, but other apps can't be
+             granted it without adb, so they can't end the host session. -->
+        <activity-alias
+            android:name=".QuitTrampoline"
+            android:targetActivity=".ShortcutTrampoline"
+            android:exported="true"
+            android:permission="android.permission.DUMP" />
         <activity
             android:name=".AppView"
             android:resizeableActivity="true"

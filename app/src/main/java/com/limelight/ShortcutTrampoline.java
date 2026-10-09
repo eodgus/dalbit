@@ -58,8 +58,10 @@ public class ShortcutTrampoline extends AppCompatActivity {
 
     private static final String TAG = "ShortcutTrampoline";
 
-    // Quits whatever runs on the host without asking, e.g. from a script that turns off an Extend Mode monitor
+    // Quits whatever runs on the host without asking, e.g. from a script that turns off an Extend Mode monitor.
+    // Only honored through the QuitTrampoline alias, which only adb (and Dalbit itself) may start.
     public static final String QUIT_EXTRA = "Quit";
+    private static final String QUIT_ALIAS = "com.limelight.QuitTrampoline";
 
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         public void onServiceConnected(ComponentName className, IBinder binder) {
@@ -367,6 +369,13 @@ public class ShortcutTrampoline extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        if (getIntent().getBooleanExtra(QUIT_EXTRA, false) && !QUIT_ALIAS.equals(getComponentName().getClassName())) {
+            // Any app can start ShortcutTrampoline, so don't let one end the host session
+            Log.w(TAG, "Ignoring Quit not sent through " + QUIT_ALIAS);
+            finish();
+            return;
+        }
 
         prefConfig = PreferenceConfiguration.readPreferences(this);
 

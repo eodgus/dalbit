@@ -27,7 +27,8 @@ goto :local
 echo 확장모드를 종료하는 중...
 %ADB% shell input keyevent KEYCODE_WAKEUP
 %ADB% shell am force-stop %PKG%
-%ADB% shell am start -n %PKG%/com.limelight.ShortcutTrampoline --es UUID %HOST_UUID% --ez Quit true >nul
+rem Dalbit only takes Quit through QuitTrampoline, which only adb can start.
+%ADB% shell am start -n %PKG%/com.limelight.QuitTrampoline --es UUID %HOST_UUID% --ez Quit true >nul
 
 :local
 if exist "%~dp0dalbit-off.local.cmd" call "%~dp0dalbit-off.local.cmd"
